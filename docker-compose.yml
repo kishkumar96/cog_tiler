@@ -8,7 +8,7 @@ services:
     image: cog-tile-server:latest
     container_name: cog-tile-server
     ports:
-      - "8000:8000"
+      - "8084:8000"
     environment:
       # You can tune these at runtime without rebuilding
       GDAL_CACHEMAX: "1024"
