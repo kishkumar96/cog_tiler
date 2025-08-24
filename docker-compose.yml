@@ -1,23 +1,26 @@
-#version: "3.8"
+version: "3.8"
 
 services:
   cog-tile-server:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_UID: ${LOCAL_UID-1000}
+        APP_GID: ${LOCAL_GID-1000}
     image: cog-tile-server:latest
     container_name: cog-tile-server
     ports:
       - "8084:8000"
     environment:
-      # You can tune these at runtime without rebuilding
       GDAL_CACHEMAX: "1024"
       GDAL_NUM_THREADS: "ALL_CPUS"
       GDAL_TIFF_OVR_BLOCKSIZE: "128"
       PYTHONUNBUFFERED: "1"
     volumes:
-      # Persist generated COGs across restarts
       - ./cache:/app/cache
+      # If using SELinux, uncomment the following and remove the line above:
+      # - ./cache:/app/cache:Z
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]

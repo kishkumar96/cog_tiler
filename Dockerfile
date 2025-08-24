@@ -24,19 +24,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
   && rm -rf /var/lib/apt/lists/*
 
-# App directory and non-root user
+# Configure app directory and non-root user with configurable UID/GID
 WORKDIR /app
-RUN useradd -ms /bin/bash app \
-  && mkdir -p /app/cache "$MPLCONFIGDIR" \
-  && chown -R app:app /app "$MPLCONFIGDIR"
+
+ARG APP_UID=1000
+ARG APP_GID=1000
+
+# Create group and user with provided IDs (if they don't already exist)
+RUN groupadd -g "${APP_GID}" app || true \
+  && useradd -m -u "${APP_UID}" -g "${APP_GID}" -s /bin/bash app || true \
+  && mkdir -p /app/cache "${MPLCONFIGDIR}" \
+  && chown -R "${APP_UID}:${APP_GID}" /app "${MPLCONFIGDIR}"
 
 # Install Python deps first (leverage Docker layer cache)
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip \
   && pip install -r /tmp/requirements.txt
 
-# Copy application code
+# Copy application code and fix ownership
 COPY . /app
+RUN chown -R "${APP_UID}:${APP_GID}" /app
 
 # Switch to non-root
 USER app
