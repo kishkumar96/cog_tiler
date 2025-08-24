@@ -1,8 +1,17 @@
 import logging
+import os
+import tempfile
+import json
+import hashlib
+from io import BytesIO
+from pathlib import Path
+from typing import Optional, Tuple, Dict, Any, Union
+from urllib.parse import unquote, urlencode
+from uuid import uuid4
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import xarray as xr
 import numpy as np
 import rasterio
 from rasterio.transform import from_bounds
@@ -10,40 +19,23 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling, tr
 from fastapi import FastAPI, Response, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from rio_tiler.io import Reader
-from io import BytesIO
 from PIL import Image
-from pathlib import Path
-import os
-import tempfile
-from uuid import uuid4
-import hashlib
-import json
-from typing import Optional, Tuple, Dict, Any
-from urllib.parse import unquote, urlencode
 from pydantic import BaseModel
-import logging
-from fastapi import APIRouter, Request
-from starlette.responses import RedirectResponse
-
-# COG tools
-from rio_cogeo.cogeo import cog_translate
-from rio_cogeo.profiles import cog_profiles
+from fastapi import APIRouter
 from filelock import FileLock
 
-# Plot dispatchers (make sure plotters.py is in the same folder or on PYTHONPATH)
 from plotters import draw_plot, AVAILABLE_PLOTS
+from data_reader import load_plot_ready_arrays
 
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tile-server")
-
 logger22 = logging.getLogger("cog-tiles")
 
 # Optional GDAL/RasterIO tuning
 os.environ.setdefault("GDAL_CACHEMAX", "512")
 os.environ.setdefault("GDAL_NUM_THREADS", "ALL_CPUS")
 os.environ.setdefault("GDAL_TIFF_OVR_BLOCKSIZE", "128")
-
 
 app = FastAPI(
     docs_url="/cog/docs",
@@ -56,6 +48,7 @@ router = APIRouter(prefix="/cog")
 @router.get("/")
 def read_root():
     return {"Message": "On-demand OPeNDAP → COG Tile Server (Pluggable Plotting)"}
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -71,6 +64,7 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 # ---------- Models ----------
 
 class CogGenerateRequest(BaseModel):
+    layer_id: str
     url: str
     variable: str
     time: Optional[str] = None
@@ -104,54 +98,74 @@ def _hash_params(data: dict) -> str:
     payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
-def _safe_unlink(p: Path):
-    try:
-        p.unlink(missing_ok=True)
-    except Exception:
-        pass
-
 def _normalize_url_param(u: str) -> str:
     decoded = unquote(u)
     if "%3A" in decoded or "%2F" in decoded:
         decoded = unquote(decoded)
     return decoded
 
-def _select_time(da: xr.DataArray, time_param: Optional[str]) -> xr.DataArray:
-    if "time" not in da.dims:
-        return da.squeeze()
-    if time_param is not None:
-        try:
-            idx = int(str(time_param).strip())
-            return da.isel(time=idx).squeeze()
-        except Exception:
-            pass
-    if time_param is None:
-        return da.isel(time=0).squeeze()
+def canonicalize_params(
+    *,
+    layer_id: str,
+    url: str,
+    variable: str,
+    time: Optional[str],
+    colormap: str,
+    vmin: float,
+    vmax: float,
+    step: float,
+    lon_min: float,
+    lon_max: float,
+    lat_min: float,
+    lat_max: float,
+    plot: str = "contourf",
+    plot_options: Optional[Union[str, Dict[str, Any]]] = None,
+) -> dict:
+    """
+    Normalize all parameters for consistent cache-keying, including plot_options as canonical JSON string.
+    """
+    if plot_options:
+        if isinstance(plot_options, dict):
+            plot_options_str = json.dumps(plot_options, sort_keys=True, separators=(",", ":"))
+        elif isinstance(plot_options, str):
+            try:
+                loaded = json.loads(plot_options)
+                plot_options_str = json.dumps(loaded, sort_keys=True, separators=(",", ":"))
+            except Exception:
+                plot_options_str = plot_options
+        else:
+            plot_options_str = str(plot_options)
+    else:
+        plot_options_str = None
+
+    return dict(
+        layer_id=str(layer_id),
+        url=_normalize_url_param(url),
+        variable=variable,
+        time=str(time) if time is not None else None,
+        colormap=colormap,
+        vmin=float(vmin),
+        vmax=float(vmax),
+        step=float(step),
+        lon_min=float(lon_min),
+        lon_max=float(lon_max),
+        lat_min=float(lat_min),
+        lat_max=float(lat_max),
+        plot=str(plot or "contourf").lower(),
+        plot_options=plot_options_str
+    )
+
+def _safe_unlink(p: Path):
     try:
-        import pandas as pd
-        times_pd = pd.to_datetime(da["time"].values, utc=True)
-        target_pd = pd.to_datetime(str(time_param), utc=True, errors="coerce")
-        if pd.isna(target_pd):
-            return da.isel(time=0).squeeze()
-        i = int((times_pd - target_pd).abs().argmin())
-        return da.isel(time=i).squeeze()
+        p.unlink(missing_ok=True)
     except Exception:
-        return da.isel(time=0).squeeze()
+        pass
 
 def _get_cmap(name: str):
     try:
         return plt.get_cmap(name)  # avoid .copy() for older Matplotlib
     except Exception:
         return plt.get_cmap("RdBu_r")
-
-def _find_coords(da: xr.DataArray) -> Tuple[str, str]:
-    lon_candidates = ["lon", "longitude", "x"]
-    lat_candidates = ["lat", "latitude", "y"]
-    lon_name = next((n for n in lon_candidates if n in da.coords or n in da.dims), None)
-    lat_name = next((n for n in lat_candidates if n in da.coords or n in da.dims), None)
-    if lon_name is None or lat_name is None:
-        raise ValueError("Could not determine lon/lat coordinate names in the dataset.")
-    return lon_name, lat_name
 
 def _png_response(img: Image.Image) -> Response:
     buf = BytesIO()
@@ -171,6 +185,7 @@ def _parse_plot_options(plot_options: Optional[str]) -> Dict[str, Any]:
 
 def ensure_cog_from_params(
     *,
+    layer_id: str,
     url: str,
     variable: str,
     time: Optional[str],
@@ -183,27 +198,33 @@ def ensure_cog_from_params(
     lat_min: float,
     lat_max: float,
     plot: str = "contourf",
-    plot_options: Optional[str] = None,
+    plot_options: Optional[Union[str, Dict[str, Any]]] = None,
 ) -> Path:
-    url = _normalize_url_param(url)
-    options = _parse_plot_options(plot_options)
-
-    params = dict(
-        url=url, variable=variable, time=time,
-        colormap=colormap, vmin=float(vmin), vmax=float(vmax), step=float(step),
-        lon_min=float(lon_min), lon_max=float(lon_max), lat_min=float(lat_min), lat_max=float(lat_max),
-        plot=str(plot or "contourf").lower(), plot_options=options,
+    """
+    Ensures a COG exists for the given parameters, using canonical cache keys.
+    Returns the path to the COG (pre-existing or newly generated).
+    """
+    params = canonicalize_params(
+        layer_id=layer_id,
+        url=url, variable=variable, time=time, colormap=colormap,
+        vmin=vmin, vmax=vmax, step=step,
+        lon_min=lon_min, lon_max=lon_max, lat_min=lat_min, lat_max=lat_max,
+        plot=plot, plot_options=plot_options
     )
+    options = _parse_plot_options(params["plot_options"])
     job_id = _hash_params(params)
     out_cog = CACHE_DIR / f"{job_id}.tif"
     lock_path = str(out_cog) + ".lock"
     tmp_out = Path(str(out_cog) + ".tmp")
 
+    # Fast-path: return if COG exists and nonzero
+    # DEV: Disable cache read post-lock
     if out_cog.exists() and out_cog.stat().st_size > 0:
         logger22.info(f"COG cache HIT (fast-path) job_id={job_id}")
         return out_cog
 
     with FileLock(lock_path, timeout=300):
+        # DEV: Disable cache read post-lock
         if out_cog.exists() and out_cog.stat().st_size > 0:
             logger22.info(f"COG cache HIT (post-lock) job_id={job_id}")
             return out_cog
@@ -214,158 +235,160 @@ def ensure_cog_from_params(
         temp_tif_3857 = tmp_dir / f"rgba_3857_{uid}.tif"
 
         try:
-            ds = xr.open_dataset(url)
+            # Load arrays ready for plotting from the data reader
+            lons_plot, lats_plot, data_ma = load_plot_ready_arrays(
+                layer_id=params["layer_id"],
+                url=params["url"],
+                variable=params["variable"],
+                time=params["time"],
+                lon_min=params["lon_min"],
+                lon_max=params["lon_max"],
+                lat_min=params["lat_min"],
+                lat_max=params["lat_max"],
+                plot=params["plot"],
+                options=options,
+            )
+
+            # Levels/checks
+            if step <= 0:
+                raise ValueError("step must be > 0")
+            if vmax <= vmin:
+                raise ValueError("vmax must be > vmin")
+            n_steps = int(np.ceil((vmax - vmin) / step))
+            levels = np.linspace(vmin, vmax, n_steps + 1)
+
+            cmap = _get_cmap(colormap)
             try:
-                da = ds[variable]
-                da2d = _select_time(da, time)
+                cmap.set_bad((0, 0, 0, 0))
+            except Exception:
+                pass
 
-                lon_name, lat_name = _find_coords(da2d)
-                if list(da2d.dims) != [lat_name, lon_name]:
-                    da2d = da2d.transpose(lat_name, lon_name)
+            # Plot only the subset (prevents "stretching" across the full global axis)
+            fig, ax = plt.subplots(figsize=(10, 6), dpi=256 / 2.54)
+            fig.patch.set_alpha(0)
+            ax.set_facecolor((0, 0, 0, 0))
+            ax.axis("off")
 
-                lons = da2d.coords[lon_name].values
-                lats = da2d.coords[lat_name].values
-
-                lons_0360 = (lons + 360) % 360
-                lon_mask = (lons_0360 >= lon_min) & (lons_0360 <= lon_max)
-                lat_mask = (lats >= lat_min) & (lats <= lat_max)
-                mask = lat_mask[:, None] & lon_mask[None, :]
-                masked_data = np.where(mask, da2d.values, np.nan)
-
-                if step <= 0:
-                    raise ValueError("step must be > 0")
-                if vmax <= vmin:
-                    raise ValueError("vmax must be > vmin")
-                n_steps = int(np.ceil((vmax - vmin) / step))
-                levels = np.linspace(vmin, vmax, n_steps + 1)
-
-                cmap = _get_cmap(colormap)
-                try:
-                    cmap.set_bad((0, 0, 0, 0))
-                except Exception:
-                    pass
-
-                fig, ax = plt.subplots(figsize=(10, 6), dpi=256 / 2.54)
-                fig.patch.set_alpha(0)
-                ax.set_facecolor((0, 0, 0, 0))
-                ax.axis("off")
-
+            try:
                 _ = draw_plot(
                     ax,
                     plot=plot,
-                    lons=lons,
-                    lats=lats,
-                    data=masked_data,
+                    lons=lons_plot,
+                    lats=lats_plot,
+                    data=data_ma,
                     cmap=cmap,
                     levels=levels,
                     vmin=vmin,
                     vmax=vmax,
                     options=options,
                 )
+            except Exception:
+                logger.exception("draw_plot failed for plot=%s with options=%s", plot, options)
+                raise
 
-                fig.tight_layout(pad=0)
-                fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
-                fig.canvas.draw()
-                w, h = fig.canvas.get_width_height()
-                image = np.array(fig.canvas.renderer.buffer_rgba())
-            finally:
-                try:
-                    ds.close()
-                except Exception:
-                    pass
-            plt.close(fig)
+            # Clamp axes to subset extent
+            ax.set_xlim(float(lons_plot.min()), float(lons_plot.max()))
+            ax.set_ylim(float(lats_plot.min()), float(lats_plot.max()))
 
-            image = image.transpose((2, 0, 1)).astype("uint8")
+            fig.tight_layout(pad=0)
+            fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            fig.canvas.draw()
+            w, h = fig.canvas.get_width_height()
+            image = np.array(fig.canvas.renderer.buffer_rgba())
+        finally:
+            plt.close("all")
 
-            left, right = float(np.min(lons)), float(np.max(lons))
-            bottom, top = float(np.min(lats)), float(np.max(lats))
-            transform = from_bounds(left, bottom, right, top, w, h)
+        # Prepare RGBA for GeoTIFF
+        image = image.transpose((2, 0, 1)).astype("uint8")
 
-            profile4326 = {
-                "driver": "GTiff",
-                "height": h,
-                "width": w,
-                "count": 4,
-                "dtype": "uint8",
-                "crs": "EPSG:4326",
-                "transform": transform,
-                "photometric": "RGB",
-                "interleave": "pixel",
+        # Geo-reference using the same subset bounds (fixes longitude stretching)
+        left, right = float(lons_plot.min()), float(lons_plot.max())
+        bottom, top = float(lats_plot.min()), float(lats_plot.max())
+        transform = from_bounds(left, bottom, right, top, w, h)
+
+        profile4326 = {
+            "driver": "GTiff",
+            "height": h,
+            "width": w,
+            "count": 4,
+            "dtype": "uint8",
+            "crs": "EPSG:4326",
+            "transform": transform,
+            "photometric": "RGB",
+            "interleave": "pixel",
+            "tiled": True,
+            "blockxsize": 256,
+            "blockysize": 256,
+            "compress": "deflate",
+            "predictor": 2,
+        }
+        _safe_unlink(temp_tif_4326)
+        with rasterio.open(temp_tif_4326, "w", **profile4326) as dst:
+            dst.write(image)
+
+        _safe_unlink(temp_tif_3857)
+        with rasterio.open(temp_tif_4326) as src:
+            transform_3857, width_3857, height_3857 = calculate_default_transform(
+                src.crs, "EPSG:3857", src.width, src.height, *src.bounds
+            )
+            profile_3857 = src.profile.copy()
+            profile_3857.update({
+                "crs": "EPSG:3857",
+                "transform": transform_3857,
+                "width": width_3857,
+                "height": height_3857,
                 "tiled": True,
                 "blockxsize": 256,
                 "blockysize": 256,
                 "compress": "deflate",
                 "predictor": 2,
-            }
-            _safe_unlink(temp_tif_4326)
-            with rasterio.open(temp_tif_4326, "w", **profile4326) as dst:
-                dst.write(image)
-
-            _safe_unlink(temp_tif_3857)
-            with rasterio.open(temp_tif_4326) as src:
-                transform_3857, width_3857, height_3857 = calculate_default_transform(
-                    src.crs, "EPSG:3857", src.width, src.height, *src.bounds
-                )
-                profile_3857 = src.profile.copy()
-                profile_3857.update({
-                    "crs": "EPSG:3857",
-                    "transform": transform_3857,
-                    "width": width_3857,
-                    "height": height_3857,
-                    "tiled": True,
-                    "blockxsize": 256,
-                    "blockysize": 256,
-                    "compress": "deflate",
-                    "predictor": 2,
-                    "interleave": "pixel",
-                })
-                with rasterio.open(temp_tif_3857, "w", **profile_3857) as dst:
-                    for i in range(1, src.count + 1):
-                        reproject(
-                            source=rasterio.band(src, i),
-                            destination=rasterio.band(dst, i),
-                            src_transform=src.transform,
-                            src_crs=src.crs,
-                            dst_transform=transform_3857,
-                            dst_crs="EPSG:3857",
-                            resampling=Resampling.nearest,
-                            num_threads=0,
-                        )
-
-            cog_profile = cog_profiles.get("deflate")
-            cog_profile.update({
-                "blockxsize": 256,
-                "blockysize": 256,
-                "zlevel": 9,
-                "predictor": 2,
                 "interleave": "pixel",
-                "tiled": True,
             })
-            _safe_unlink(tmp_out)
-            cog_translate(
-                str(temp_tif_3857),
-                str(tmp_out),
-                cog_profile,
-                overview_resampling="nearest",
-                web_optimized=True,
-                in_memory=False,
-                config={"GDAL_NUM_THREADS": "ALL_CPUS", "GDAL_TIFF_OVR_BLOCKSIZE": "128"},
-            )
-            os.replace(tmp_out, out_cog)
-            logger22.info(f"####################################")
-            logger22.info(f"####################################")
-            logger22.info(f"[COG] build COMPLETE ")
-            return out_cog
-        finally:
-            _safe_unlink(Path(temp_tif_4326))
-            _safe_unlink(Path(temp_tif_3857))
-            _safe_unlink(tmp_out)
+            with rasterio.open(temp_tif_3857, "w", **profile_3857) as dst:
+                for i in range(1, src.count + 1):
+                    reproject(
+                        source=rasterio.band(src, i),
+                        destination=rasterio.band(dst, i),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform_3857,
+                        dst_crs="EPSG:3857",
+                        resampling=Resampling.nearest,
+                        num_threads=0,
+                    )
+
+        from rio_cogeo.cogeo import cog_translate
+        from rio_cogeo.profiles import cog_profiles
+
+        cog_profile = cog_profiles.get("deflate")
+        cog_profile.update({
+            "blockxsize": 256,
+            "blockysize": 256,
+            "zlevel": 9,
+            "predictor": 2,
+            "interleave": "pixel",
+            "tiled": True,
+        })
+        _safe_unlink(tmp_out)
+        cog_translate(
+            str(temp_tif_3857),
+            str(tmp_out),
+            cog_profile,
+            overview_resampling="nearest",
+            web_optimized=True,
+            in_memory=False,
+            config={"GDAL_NUM_THREADS": "ALL_CPUS", "GDAL_TIFF_OVR_BLOCKSIZE": "128"},
+        )
+        os.replace(tmp_out, out_cog)
+        logger22.info(f"[COG] build COMPLETE ")
+        return out_cog
 
 # ---------- Routes ----------
 
 DEFAULT_URL = "https://ocean-thredds01.spc.int/thredds/dodsC/POP/model/regional/noaa/nrt/daily/sst_anomalies/oisst-avhrr-v02r01.20250815_preliminary.nc"
 DEFAULT_VAR = "anom"
 DEFAULT_PARAMS = dict(
+    layer_id="4",
     url=DEFAULT_URL, variable=DEFAULT_VAR, time=None,
     colormap="RdBu_r", vmin=-2.0, vmax=2.0, step=0.5,
     lon_min=100.0, lon_max=300.0, lat_min=-45.0, lat_max=45.0,
@@ -381,7 +404,7 @@ def tiles_static(z: int, x: int, y: int):
     if DEFAULT_COG is None or not DEFAULT_COG.exists():
         try:
             DEFAULT_COG = ensure_cog_from_params(**DEFAULT_PARAMS)
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to build DEFAULT_COG")
             img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
             return _png_response(img)
@@ -405,6 +428,7 @@ def tiles_static(z: int, x: int, y: int):
 @router.get("/tiles/dynamic/{z}/{x}/{y}.png")
 def tiles_dynamic(
     z: int, x: int, y: int,
+    layer_id: str = Query(..., description="Layer id"),
     url: str = Query(..., description="OPeNDAP URL (URL-encoded or plain)"),
     variable: str = Query(..., description="Variable name"),
     time: Optional[str] = Query(None, description="Time index or ISO string"),
@@ -422,22 +446,24 @@ def tiles_dynamic(
         description="JSON dict of matplotlib kwargs; for 'discrete', include ranges (list) and colors (list).",
     ),
 ):
+    params = canonicalize_params(
+        layer_id=layer_id,
+        url=url,
+        variable=variable,
+        time=time,
+        colormap=colormap,
+        vmin=vmin,
+        vmax=vmax,
+        step=step,
+        lon_min=lon_min,
+        lon_max=lon_max,
+        lat_min=lat_min,
+        lat_max=lat_max,
+        plot=plot,
+        plot_options=plot_options,
+    )
     try:
-        cog_path = ensure_cog_from_params(
-            url=url,
-            variable=variable,
-            time=time,
-            colormap=colormap,
-            vmin=vmin,
-            vmax=vmax,
-            step=step,
-            lon_min=lon_min,
-            lon_max=lon_max,
-            lat_min=lat_min,
-            lat_max=lat_max,
-            plot=plot,
-            plot_options=plot_options,
-        )
+        cog_path = ensure_cog_from_params(**params)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -457,27 +483,12 @@ def tiles_dynamic(
             img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     return _png_response(img)
 
+
 @router.post("/generate", response_model=CogGenerateResponse)
 def cog_generate(payload: CogGenerateRequest):
     options = payload.plot_options or {}
-    hash_input = dict(
-        url=_normalize_url_param(payload.url),
-        variable=payload.variable,
-        time=payload.time,
-        colormap=payload.colormap,
-        vmin=float(payload.vmin),
-        vmax=float(payload.vmax),
-        step=float(payload.step),
-        lon_min=float(payload.lon_min),
-        lon_max=float(payload.lon_max),
-        lat_min=float(payload.lat_min),
-        lat_max=float(payload.lat_max),
-        plot=str(payload.plot or "contourf").lower(),
-        plot_options=options,
-    )
-    job_id = _hash_params(hash_input)
-
-    cog_path = ensure_cog_from_params(
+    params = canonicalize_params(
+        layer_id=payload.layer_id,
         url=payload.url,
         variable=payload.variable,
         time=payload.time,
@@ -490,8 +501,10 @@ def cog_generate(payload: CogGenerateRequest):
         lat_min=payload.lat_min,
         lat_max=payload.lat_max,
         plot=payload.plot,
-        plot_options=json.dumps(options) if options else None,
+        plot_options=options,
     )
+    job_id = _hash_params(params)
+    cog_path = ensure_cog_from_params(**params)
 
     exists = cog_path.exists()
     size_bytes = cog_path.stat().st_size if exists else 0
@@ -509,23 +522,7 @@ def cog_generate(payload: CogGenerateRequest):
             except Exception:
                 pass
 
-    tile_params = {
-        "url": payload.url,
-        "variable": payload.variable,
-        "time": payload.time or "",
-        "colormap": payload.colormap,
-        "vmin": str(payload.vmin),
-        "vmax": str(payload.vmax),
-        "step": str(payload.step),
-        "lon_min": str(payload.lon_min),
-        "lon_max": str(payload.lon_max),
-        "lat_min": str(payload.lat_min),
-        "lat_max": str(payload.lat_max),
-        "plot": str(payload.plot or "contourf").lower(),
-    }
-    if options:
-        tile_params["plot_options"] = json.dumps(options)
-
+    tile_params = dict(params)
     return CogGenerateResponse(
         job_id=job_id,
         cog_path=str(cog_path),
@@ -536,7 +533,6 @@ def cog_generate(payload: CogGenerateRequest):
         crs=crs,
         tile_querystring=urlencode(tile_params),
     )
-
 
 
 app.include_router(router)

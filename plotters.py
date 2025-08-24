@@ -3,24 +3,30 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from typing import Optional, Dict, Any, List, Tuple
 
-# Public: keep this in sync with main.py docstrings
 AVAILABLE_PLOTS = ("contourf", "contour", "pcolormesh", "imshow", "discrete")
 
 
 def _parse_discrete_segments(ranges: List[str]) -> List[Tuple[float, float]]:
-    """
-    Convert list like ["0-1","2-3","4"] into [(0,1),(2,3),(4,4)] with floats.
-    """
     segments: List[Tuple[float, float]] = []
     for r in ranges:
         s = str(r).strip()
         if "-" in s:
-            a, b = s.split("-", 1)
-            start, end = float(a), float(b)
+            parts = s.split("-", 1)
+            a = parts[0].strip()
+            b = parts[1].strip()
+            # If either side is empty, treat as single value
+            if a == '' or b == '':
+                try:
+                    f = float(a or b)
+                    start = end = f
+                except Exception:
+                    raise ValueError(f"Invalid range specifier: '{s}'")
+            else:
+                start, end = float(a), float(b)
+                if end < start:
+                    start, end = end, start
         else:
             start = end = float(s)
-        if end < start:
-            start, end = end, start
         segments.append((start, end))
     return segments
 
@@ -38,15 +44,6 @@ def draw_plot(
     vmax: Optional[float],
     options: Dict[str, Any],
 ):
-    """
-    Dispatch to different plot types.
-    Supported:
-      - contourf (default): uses 'levels'
-      - contour: line contours, uses 'levels'
-      - pcolormesh: uses vmin/vmax
-      - imshow: uses vmin/vmax with extent
-      - discrete: categorical ranges using options.ranges/colors/(optional)labels
-    """
     plot = (plot or "contourf").lower()
 
     if plot == "contourf":
@@ -72,36 +69,61 @@ def draw_plot(
         return ax.imshow(data, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent, **kw)
 
     if plot == "discrete":
-        # Expect: options = { "ranges": [...], "colors": [...], "labels": [...]? }
         ranges = (options or {}).get("ranges")
         colors = (options or {}).get("colors")
+        transparent_below = (options or {}).get("transparent_below", None)
+        mask_out_of_range = bool((options or {}).get("mask_out_of_range", True))
+
         if not isinstance(ranges, list) or not isinstance(colors, list):
             raise ValueError("discrete plot requires plot_options.ranges (list) and plot_options.colors (list)")
         segments = _parse_discrete_segments(ranges)
         if len(colors) != len(segments):
             raise ValueError("Number of colors must equal number of ranges for discrete plot")
 
-        # Build categorical index for segments
-        seg_idx = np.full(data.shape, -1, dtype=np.int16)
-        for i, (start, end) in enumerate(segments):
-            mask_i = (data >= start) & (data <= end)
-            seg_idx[mask_i] = i
+        # Accept any input (masked or not), promote to float for NaN support
+        if np.ma.isMaskedArray(data):
+            base_mask = np.array(np.ma.getmaskarray(data), dtype=bool)
+            data_f = data.astype(float, copy=False).filled(np.nan)
+        else:
+            data_f = np.asarray(data, dtype=float)
+            base_mask = np.zeros_like(data_f, dtype=bool)
 
-        # Mask nodata/out-of-range to transparent
-        seg_mask = seg_idx < 0
+        # Only allow values exactly matching the segments' start values (e.g., 0,1,2,3,4)
+        allowed_values = np.array([start for (start, end) in segments if start == end])
+        allowed = np.isin(data_f, allowed_values)
+        base_mask = base_mask | (~allowed)
+
+        # Optionally, also apply threshold mask if requested
+        threshold_mask = np.zeros_like(data_f, dtype=bool)
+        if transparent_below is not None:
+            threshold_mask = data_f < float(transparent_below)
+
+        invalid = base_mask | (~np.isfinite(data_f)) | threshold_mask
+
+        seg_idx = np.full(data_f.shape, -1, dtype=np.int16)
+        valid_data = ~invalid
+        if np.any(valid_data):
+            vals = data_f
+            for i, (start, end) in enumerate(segments):
+                # For strict class coloring, only allow exact matches if start==end
+                if start == end:
+                    mask_i = valid_data & (vals == start)
+                else:
+                    mask_i = valid_data & (vals >= start) & (vals <= end)
+                seg_idx[mask_i] = i
+
+        seg_mask = invalid | ((seg_idx < 0) if mask_out_of_range else False)
         seg_idx_ma = np.ma.array(seg_idx, mask=seg_mask)
 
         listed = mcolors.ListedColormap(colors)
         listed.set_bad((0, 0, 0, 0))  # transparent
 
-        # Boundaries at integer centers: [-0.5, 0.5, 1.5, ...]
         N = len(segments)
         boundaries = np.arange(-0.5, N + 0.5, 1.0, dtype=float)
-        norm = mcolors.BoundaryNorm(boundaries, N)
+        norm = mcolors.BoundaryNorm(boundaries, N, clip=False)
 
-        # Do not mutate caller options
         opt = dict(options or {})
-        for k in ("ranges", "colors", "labels"):
+        for k in ("ranges", "colors", "labels", "transparent_below", "mask_out_of_range"):
             opt.pop(k, None)
 
         kw = {"shading": "auto"}
