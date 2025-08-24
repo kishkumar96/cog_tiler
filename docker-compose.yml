@@ -9,6 +9,9 @@ services:
     container_name: cog-tile-server
     ports:
       - "8084:8000"
+    volumes:
+      - /mnt/data/ocean_portal/datasets:/app/datasets
+
     environment:
       GDAL_CACHEMAX: "1024"
       GDAL_NUM_THREADS: "ALL_CPUS"
