@@ -5,9 +5,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        APP_UID: ${LOCAL_UID-1000}
-        APP_GID: ${LOCAL_GID-1000}
     image: cog-tile-server:latest
     container_name: cog-tile-server
     ports:
@@ -17,13 +14,11 @@ services:
       GDAL_NUM_THREADS: "ALL_CPUS"
       GDAL_TIFF_OVR_BLOCKSIZE: "128"
       PYTHONUNBUFFERED: "1"
-    volumes:
-      - ./cache:/app/cache
-      # If using SELinux, uncomment the following and remove the line above:
-      # - ./cache:/app/cache:Z
+      # Optional if you update code to read CACHE_DIR:
+      # CACHE_DIR: "/app/cache"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/cog/docs"]
       interval: 30s
       timeout: 5s
       retries: 5

@@ -58,8 +58,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CACHE_DIR = Path("cache")
+CACHE_DIR = Path(os.environ.get("CACHE_DIR", "/app/cache"))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+#CACHE_DIR = Path("cache")
+#CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------- Models ----------
 
