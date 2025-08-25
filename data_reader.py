@@ -6,12 +6,70 @@ import xarray as xr
 import sys
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+
+def parse_time_to_naive_utc(time_str: Optional[str]) -> datetime:
+    """
+    Parse a wide range of ISO-8601 timestamp strings into a naive UTC datetime.
+    Accepts:
+      - 'YYYY-MM-DDTHH:MM:SSZ'
+      - 'YYYY-MM-DDTHH:MM:SS.sssZ' (any fractional seconds)
+      - 'YYYY-MM-DDTHH:MM:SS+00:00' (or other offsets)
+    Returns a naive datetime in UTC (tzinfo=None).
+    Raises ValueError if it cannot parse.
+    """
+    if time_str is None:
+        raise ValueError("Time must be provided for time parsing.")
+
+    t = str(time_str).strip()
+
+    # 1) Try explicit common formats
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S.%fZ"):
+        try:
+            return datetime.strptime(t, fmt)
+        except ValueError:
+            pass
+
+    # 2) Try ISO with offset via fromisoformat (replace 'Z' with '+00:00')
+    try:
+        dt = datetime.fromisoformat(t.replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except Exception:
+        pass
+
+    # 3) Try pandas if available
+    try:
+        import pandas as pd
+        dt_pd = pd.to_datetime(t, utc=True, errors="raise")
+        dt_py = dt_pd.to_pydatetime()
+        # to_pydatetime can return a scalar or an array
+        if hasattr(dt_py, "__iter__") and not isinstance(dt_py, datetime):
+            dt_py = list(dt_py)[0]
+        return dt_py.replace(tzinfo=None)
+    except Exception:
+        pass
+
+    # 4) Try python-dateutil if available
+    try:
+        from dateutil import parser as du_parser
+        dt = du_parser.parse(t)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except Exception:
+        pass
+
+    raise ValueError(f"Unrecognized time format: {time_str}")
+
 
 def get_root_path(config_file: str = "config.json") -> str:
     with open(config_file, "r", encoding="utf-8") as f:
         cfg = json.load(f)
     return cfg["root-path"]
+
 
 def get_layer_dataset_download_info(layer_id, time=None, root_dir=None, mapper_filename='dataset_mapper.json'):
     """
@@ -60,14 +118,12 @@ def get_layer_dataset_download_info(layer_id, time=None, root_dir=None, mapper_f
         infix = "%Y%m"
         suffix = ".nc"
 
-    
-
     # Prepare file name
     if "%" in infix:
         if "_" in infix and "AQUA" in infix:
             first_fmt, last_fmt = infix.split("_", 1)
             # Parse the base date
-            dt = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
+            dt = parse_time_to_naive_utc(time)
             # First day of month
             first_day = dt.replace(day=1)
             # Last day of month: go to next month, subtract 1 day
@@ -84,8 +140,7 @@ def get_layer_dataset_download_info(layer_id, time=None, root_dir=None, mapper_f
         elif layer_id == "36": 
             first_fmt, last_fmt = infix.split("_", 1)
             # Parse the base date
-            # Parse the base date
-            dt = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
+            dt = parse_time_to_naive_utc(time)
             # First day of current month
             first_day = dt.replace(day=1)
 
@@ -94,7 +149,8 @@ def get_layer_dataset_download_info(layer_id, time=None, root_dir=None, mapper_f
                 # December or November
                 year = first_day.year + 1
                 month = (first_day.month + 2) % 12
-                if month == 0: month = 12
+                if month == 0: 
+                    month = 12
             else:
                 year = first_day.year
                 month = first_day.month + 2
@@ -112,7 +168,7 @@ def get_layer_dataset_download_info(layer_id, time=None, root_dir=None, mapper_f
             # Format
             infix_formatted = f"{first_day.strftime(first_fmt)}_{last_day.strftime(last_fmt)}"
         else:
-            dt = datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
+            dt = parse_time_to_naive_utc(time)
             infix_formatted = dt.strftime(infix)
     elif "none" in infix:
         infix_formatted = ""
@@ -139,7 +195,7 @@ def get_layer_dataset_download_info(layer_id, time=None, root_dir=None, mapper_f
             """
             # Reference start and end date from your first dataset
             ref_start = datetime(2025, 5, 25)
-            dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
+            dt = parse_time_to_naive_utc(time_str)
             days_since_ref = (dt - ref_start).days
             period_index = days_since_ref // 8
             # Handle dates before the reference period
@@ -255,7 +311,7 @@ def load_plot_ready_arrays(
     plot = (plot or "contourf").lower()
     opts = _parse_plot_options(options)
     root_path = get_root_path()
-    info = get_layer_dataset_download_info(str(layer_id),time,root_path)
+    info = get_layer_dataset_download_info(str(layer_id), time, root_path)
     check_local = True
     local_file_name = ""
     if info == 0:
@@ -268,7 +324,6 @@ def load_plot_ready_arrays(
     print(check_local)
     print(local_file_name)
         
-
     with xr.open_dataset(local_file_name) as ds:
         if variable not in ds:
             raise KeyError(f"Variable '{variable}' not found in dataset")
