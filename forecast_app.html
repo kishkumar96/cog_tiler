@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cook Islands Wave Forecast - World Class Marine Forecasting</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .header .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 1rem;
+            height: calc(100vh - 120px);
+            padding: 1rem;
+        }
+
+        .map-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .controls-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 12px;
+        }
+
+        .control-group {
+            margin-bottom: 2rem;
+        }
+
+        .control-group h3 {
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #00d4ff;
+            padding-bottom: 0.5rem;
+        }
+
+        .variable-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .var-btn {
+            padding: 0.8rem;
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+            border: 2px solid #00d4ff;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .var-btn:hover {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .var-btn.active {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .time-control {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .time-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #1e3c72 0%, #00d4ff 100%);
+            outline: none;
+            margin: 1rem 0;
+        }
+
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .forecast-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .forecast-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin: 0.5rem 0;
+        }
+
+        .legend {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .legend-gradient {
+            height: 20px;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        .opacity-control {
+            margin: 1rem 0;
+        }
+
+        .opacity-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            margin-top: 0.5rem;
+        }
+
+        .opacity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2rem;
+            border-radius: 12px;
+            z-index: 2000;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #00d4ff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 0.5rem 2rem;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .controls-panel {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌊 Cook Islands Wave Forecast</h1>
+        <div class="subtitle">World-Class Marine Forecasting • Pacific Community (SPC) Data</div>
+    </div>
+
+    <div class="main-container">
+        <div class="map-section">
+            <div id="map"></div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Loading forecast data...</div>
+            </div>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-group">
+                <h3>📊 Forecast Variables</h3>
+                <div class="variable-buttons">
+                    <div class="var-btn active" data-var="hs" data-source="ugrid">Wave Height</div>
+                    <div class="var-btn" data-var="tpeak" data-source="ugrid">Wave Period</div>
+                    <div class="var-btn" data-var="u10" data-source="ugrid">Wind U</div>
+                    <div class="var-btn" data-var="v10" data-source="ugrid">Wind V</div>
+                    <div class="var-btn" data-var="Band1" data-source="gridded">Inundation</div>
+                    <div class="var-btn" data-var="dirp" data-source="ugrid">Wave Dir</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>⏰ Forecast Time</h3>
+                <div class="time-control">
+                    <div class="forecast-info">
+                        <div>Current Time: <span id="current-time">+0 hours</span></div>
+                        <div>Valid: <span id="forecast-time">Now</span></div>
+                    </div>
+                    <input type="range" class="time-slider" id="timeSlider" min="0" max="228" value="0" step="1">
+                    <div class="forecast-info">
+                        <div>Forecast Length: <strong>229 hours (9+ days)</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>📈 Current Values</h3>
+                <div class="forecast-info">
+                    <div>Variable: <span id="current-variable">Wave Height (hs)</span></div>
+                    <div class="forecast-value" id="current-value">Loading...</div>
+                    <div id="current-units">meters</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🎨 Display Options</h3>
+                <div class="legend">
+                    <div>Color Scale:</div>
+                    <div class="legend-gradient" id="legend-gradient"></div>
+                    <div class="legend-labels" id="legend-labels">
+                        <span>0</span><span>Max</span>
+                    </div>
+                </div>
+                
+                <div class="opacity-control">
+                    <label>Overlay Opacity: <span id="opacity-value">80%</span></label>
+                    <input type="range" class="opacity-slider" id="opacitySlider" min="0" max="100" value="80">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>ℹ️ Data Info</h3>
+                <div class="forecast-info" style="font-size: 0.9rem;">
+                    <div><strong>Source:</strong> Pacific Community (SPC)</div>
+                    <div><strong>Model:</strong> SCHISM + WaveWatch III</div>
+                    <div><strong>Resolution:</strong> Unstructured Mesh</div>
+                    <div><strong>Update:</strong> 4x Daily</div>
+                    <div><strong>Coverage:</strong> Cook Islands</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-indicator">
+            <div class="status-dot"></div>
+            <span>Live Data Connected</span>
+        </div>
+        <div id="last-update">Last Update: Loading...</div>
+        <div>© 2025 Cook Islands Marine Forecast</div>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Global variables
+        let map;
+        let currentOverlay = null;
+        let currentVariable = 'hs';
+        let currentSource = 'ugrid';
+        let currentTime = 0;
+        let forecastStartTime = new Date();
+        
+        // Variable configurations
+        const variableConfig = {
+            'hs': {
+                name: 'Wave Height',
+                units: 'meters',
+                colorScale: 'plasma',
+                vmin: 0,
+                vmax: 0.05,
+                gradient: 'linear-gradient(90deg, #0d0887 0%, #7e03a8 25%, #cc4778 50%, #f89441 75%, #f0f921 100%)'
+            },
+            'tpeak': {
+                name: 'Peak Wave Period',
+                units: 'seconds',
+                colorScale: 'viridis',
+                vmin: 2.005,
+                vmax: 2.015,
+                gradient: 'linear-gradient(90deg, #440154 0%, #31688e 25%, #35b779 50%, #8fd744 75%, #fde725 100%)'
+            },
+            'u10': {
+                name: 'Wind U Component',
+                units: 'm/s',
+                colorScale: 'RdBu_r',
+                vmin: 4.5,
+                vmax: 5.5,
+                gradient: 'linear-gradient(90deg, #67001f 0%, #d6604d 25%, #f7f7f7 50%, #4393c3 75%, #053061 100%)'
+            },
+            'v10': {
+                name: 'Wind V Component', 
+                units: 'm/s',
+                colorScale: 'RdBu_r',
+                vmin: 1.5,
+                vmax: 3.0,
+                gradient: 'linear-gradient(90deg, #67001f 0%, #d6604d 25%, #f7f7f7 50%, #4393c3 75%, #053061 100%)'
+            },
+            'Band1': {
+                name: 'Inundation Depth',
+                units: 'meters',
+                colorScale: 'Blues',
+                vmin: 0,
+                vmax: 3,
+                gradient: 'linear-gradient(90deg, #f7fbff 0%, #c6dbef 25%, #6baed6 50%, #2171b5 75%, #08306b 100%)'
+            },
+            'dirp': {
+                name: 'Peak Wave Direction',
+                units: 'degrees',
+                colorScale: 'hsv',
+                vmin: 0,
+                vmax: 360,
+                gradient: 'linear-gradient(90deg, #ff0000 0%, #ffff00 16.67%, #00ff00 33.33%, #00ffff 50%, #0000ff 66.67%, #ff00ff 83.33%, #ff0000 100%)'
+            }
+        };
+
+        // Initialize the application
+        function initializeApp() {
+            initializeMap();
+            setupEventListeners();
+            updateForecastDisplay();
+            loadInitialData();
+        }
+
+        // Initialize the map
+        function initializeMap() {
+            // Cook Islands coordinates (Rarotonga)
+            const cookIslandsCenter = [-21.2367, -159.7777];
+            
+            map = L.map('map', {
+                center: cookIslandsCenter,
+                zoom: 10,
+                zoomControl: true
+            });
+
+            // Add base map layers
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 18
+            });
+
+            const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 18
+            });
+
+            // Add satellite as default
+            satelliteLayer.addTo(map);
+
+            // Layer control
+            const baseMaps = {
+                "Satellite": satelliteLayer,
+                "Street Map": openStreetMap
+            };
+
+            L.control.layers(baseMaps).addTo(map);
+
+            // Add scale control
+            L.control.scale().addTo(map);
+
+            // Add attribution
+            map.attributionControl.addAttribution('Wave Forecast: Pacific Community (SPC)');
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Variable buttons
+            document.querySelectorAll('.var-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Update active button
+                    document.querySelectorAll('.var-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update current variable
+                    currentVariable = this.dataset.var;
+                    currentSource = this.dataset.source;
+                    
+                    updateVariableDisplay();
+                    loadForecastData();
+                });
+            });
+
+            // Time slider
+            const timeSlider = document.getElementById('timeSlider');
+            timeSlider.addEventListener('input', function() {
+                currentTime = parseInt(this.value);
+                updateTimeDisplay();
+                loadForecastData();
+            });
+
+            // Opacity slider
+            const opacitySlider = document.getElementById('opacitySlider');
+            opacitySlider.addEventListener('input', function() {
+                const opacity = parseInt(this.value) / 100;
+                document.getElementById('opacity-value').textContent = this.value + '%';
+                
+                if (currentOverlay) {
+                    currentOverlay.setOpacity(opacity);
+                }
+            });
+        }
+
+        // Update variable display
+        function updateVariableDisplay() {
+            const config = variableConfig[currentVariable];
+            
+            document.getElementById('current-variable').textContent = `${config.name} (${currentVariable})`;
+            document.getElementById('current-units').textContent = config.units;
+            
+            // Update legend
+            const legendGradient = document.getElementById('legend-gradient');
+            legendGradient.style.background = config.gradient;
+            
+            const legendLabels = document.getElementById('legend-labels');
+            legendLabels.innerHTML = `<span>${config.vmin}</span><span>${config.vmax}</span>`;
+        }
+
+        // Update time display
+        function updateTimeDisplay() {
+            document.getElementById('current-time').textContent = `+${currentTime} hours`;
+            
+            const forecastDate = new Date(forecastStartTime);
+            forecastDate.setHours(forecastDate.getHours() + currentTime);
+            document.getElementById('forecast-time').textContent = forecastDate.toLocaleString();
+        }
+
+        // Update forecast display
+        function updateForecastDisplay() {
+            const now = new Date();
+            forecastStartTime = now;
+            document.getElementById('last-update').textContent = `Last Update: ${now.toLocaleString()}`;
+            updateTimeDisplay();
+            updateVariableDisplay();
+        }
+
+        // Load forecast data
+        function loadForecastData() {
+            showLoading(true);
+            
+            const config = variableConfig[currentVariable];
+            let endpoint;
+            
+            // Detect if we're in a Codespace and use the appropriate protocol
+            const isCodespace = window.location.hostname.includes('app.github.dev');
+            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8000';
+            
+            if (currentSource === 'ugrid') {
+                endpoint = `${baseUrl}/cog/cook-islands-ugrid/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
+            } else {
+                endpoint = `${baseUrl}/cog/cook-islands/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
+            }
+
+            // Remove existing overlay
+            if (currentOverlay) {
+                map.removeLayer(currentOverlay);
+            }
+
+            // Add new overlay
+            currentOverlay = L.tileLayer(endpoint, {
+                opacity: document.getElementById('opacitySlider').value / 100,
+                maxZoom: 18,
+                attribution: 'Wave Data: Pacific Community (SPC)'
+            });
+
+            currentOverlay.on('loading', function() {
+                showLoading(true);
+            });
+
+            currentOverlay.on('load', function() {
+                showLoading(false);
+                updateCurrentValue();
+            });
+
+            currentOverlay.on('tileerror', function(error) {
+                console.warn('Tile loading error:', error);
+                showLoading(false);
+                document.getElementById('current-value').textContent = 'Data not available';
+            });
+
+            currentOverlay.addTo(map);
+        }
+
+        // Update current value display (mock implementation)
+        function updateCurrentValue() {
+            const config = variableConfig[currentVariable];
+            
+            // Try to fetch real current values from API
+            const isCodespace = window.location.hostname.includes('app.github.dev');
+            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8000';
+            
+            fetch(`${baseUrl}/cog/forecast/current/${currentVariable}?time_index=${currentTime}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success' && data.value !== null) {
+                        document.getElementById('current-value').textContent = data.value.toFixed(2);
+                        return;
+                    }
+                    throw new Error('No data available');
+                })
+                .catch(error => {
+                    // Fallback to mock values if API fails
+                    let mockValue;
+                    switch(currentVariable) {
+                        case 'hs':
+                            mockValue = (Math.random() * 3 + 0.5).toFixed(2);
+                            break;
+                        case 'tpeak':
+                            mockValue = (Math.random() * 8 + 4).toFixed(1);
+                            break;
+                        case 'u10':
+                        case 'v10':
+                            mockValue = (Math.random() * 20 - 10).toFixed(1);
+                            break;
+                        case 'Band1':
+                            mockValue = (Math.random() * 2).toFixed(3);
+                            break;
+                        case 'dirp':
+                            mockValue = Math.floor(Math.random() * 360);
+                            break;
+                        default:
+                            mockValue = '---';
+                    }
+                    document.getElementById('current-value').textContent = mockValue;
+                });
+        }
+
+        // Show/hide loading indicator
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Load initial data
+        function loadInitialData() {
+            // Simulate initial data load
+            setTimeout(() => {
+                loadForecastData();
+            }, 1000);
+        }
+
+        // Initialize the app when page loads
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        // Auto-refresh every 15 minutes
+        setInterval(() => {
+            updateForecastDisplay();
+            if (currentOverlay) {
+                loadForecastData();
+            }
+        }, 15 * 60 * 1000);
+    </script>
+</body>
+</html>

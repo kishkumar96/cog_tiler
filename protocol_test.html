@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Protocol Test</title>
+</head>
+<body>
+    <h1>🔧 Cook Islands Forecast - Protocol Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Test the protocol detection logic
+        const isCodespace = window.location.hostname.includes('app.github.dev');
+        const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8000';
+        
+        const results = document.getElementById('results');
+        results.innerHTML = `
+            <h3>Protocol Detection Results:</h3>
+            <p><strong>Current Hostname:</strong> ${window.location.hostname}</p>
+            <p><strong>Is Codespace:</strong> ${isCodespace}</p>
+            <p><strong>Base URL:</strong> ${baseUrl}</p>
+            <p><strong>Protocol:</strong> ${window.location.protocol}</p>
+            <p><strong>Full Origin:</strong> ${window.location.origin}</p>
+            
+            <h3>Tile URLs will be:</h3>
+            <p><strong>UGRID:</strong> ${baseUrl}/cog/cook-islands-ugrid/{z}/{x}/{y}.png</p>
+            <p><strong>Gridded:</strong> ${baseUrl}/cog/cook-islands/{z}/{x}/{y}.png</p>
+            
+            <h3>✅ Expected Result:</h3>
+            <p>In Codespace: Uses HTTPS with your Codespace domain</p>
+            <p>Locally: Uses HTTP with localhost:8000</p>
+            
+            <h3>🔄 Next Step:</h3>
+            <p>Refresh your forecast application to see the tiles load!</p>
+        `;
+    </script>
+</body>
+</html>

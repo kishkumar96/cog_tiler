@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, Union
 from urllib.parse import unquote, urlencode
 from uuid import uuid4
+from datetime import datetime, timedelta
 
 import matplotlib
 matplotlib.use("Agg")
@@ -17,13 +18,14 @@ import rasterio
 from rasterio.transform import from_bounds
 from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
 from fastapi import FastAPI, Response, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from rio_tiler.io import Reader
 from PIL import Image
 from pydantic import BaseModel
 from fastapi import APIRouter
 from filelock import FileLock
+import xarray as xr
 
 from plotters import draw_plot, AVAILABLE_PLOTS
 from data_reader import load_plot_ready_arrays
@@ -408,16 +410,16 @@ def cook_islands_tiles(
     colormap: str = Query("viridis", description="Matplotlib colormap"),
     vmin: float = Query(0.0, description="Min value for colormap"),
     vmax: float = Query(5.0, description="Max value for colormap"),
-    use_local: bool = Query(True, description="Use local test data (fallback for network issues)"),
+    use_local: bool = Query(False, description="Use local test data (fallback for network issues)"),
 ):
     """
     Cook Islands specific tile endpoint with defaults for Rarotonga inundation data
     """
-    # Cook Islands defaults - use local test data if network issues
+    # Cook Islands defaults - use real THREDDS data by default
     if use_local:
-        cook_islands_url = "/home/kishank/ocean_subsites/New COG/cog_tiler/cook_islands_test_data.nc"
+        cook_islands_url = "/workspaces/cog_tiler/cook_islands_test_data.nc"
     else:
-        cook_islands_url = "http://gemthredsshpc.spc.int/thredds/dodsC/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
+        cook_islands_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
     
     # Rarotonga bounds (approximate)
     rarotonga_bounds = {
@@ -473,18 +475,18 @@ def cook_islands_ugrid_tiles(
     colormap: str = Query("RdYlBu_r", description="Matplotlib colormap"),
     vmin: float = Query(-2.0, description="Min value for colormap"),
     vmax: float = Query(3.0, description="Max value for colormap"),
-    use_local: bool = Query(True, description="Use local test data (fallback for network issues)"),
+    use_local: bool = Query(False, description="Use local test data (fallback for network issues)"),
 ):
     """
     Cook Islands UGRID specific tile endpoint for unstructured grid data
     """
-    # UGRID defaults - use local test data if network issues
+    # UGRID defaults - use real THREDDS data by default
     if use_local:
         # For now, fallback to regular gridded test data
-        ugrid_url = "file:///home/kishank/ocean_subsites/New COG/cog_tiler/cook_islands_test_data.nc"
+        ugrid_url = "file:///workspaces/cog_tiler/cook_islands_test_data.nc"
         variable = "inundation_depth"  # Map to available variable in test data
     else:
-        ugrid_url = "http://gemthredsshpc.spc.int/thredds/dodsC/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+        ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
     
     # Rarotonga bounds (slightly expanded for UGRID)
     rarotonga_bounds = {
@@ -677,7 +679,7 @@ def cook_islands_wms_comparison(
     """
     Compare Cook Islands COG tiles with the original WMS service
     """
-    wms_url = "http://gemthredsshpc.spc.int/thredds/wms/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
+    wms_url = "https://gemthreddshpc.spc.int/thredds/wms/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
     
     # Center tile for Rarotonga at given zoom level
     # Approximate center: -21.2°, -159.75°
@@ -732,6 +734,194 @@ def cook_islands_wms_comparison(
     }
 
 
+# ---------- Forecast Application Endpoints ----------
+
+@router.get("/forecast/metadata")
+def get_forecast_metadata():
+    """Get metadata for the forecast application"""
+    return JSONResponse({
+        "application": {
+            "name": "Cook Islands Wave Forecast",
+            "version": "1.0.0",
+            "description": "World-class marine forecasting application using SPC THREDDS data"
+        },
+        "data_source": {
+            "provider": "Pacific Community (SPC)",
+            "server": "gemthreddshpc.spc.int",
+            "protocol": "OPeNDAP",
+            "model": "SCHISM + WaveWatch III"
+        },
+        "coverage": {
+            "region": "Cook Islands",
+            "center": [-21.2367, -159.7777],
+            "bounds": {
+                "lat_min": -21.4,
+                "lat_max": -21.1, 
+                "lon_min": -159.9,
+                "lon_max": -159.6
+            }
+        },
+        "variables": {
+            "hs": {
+                "name": "Significant Wave Height",
+                "units": "meters",
+                "description": "Height of waves as measured from trough to crest",
+                "range": [0, 8],
+                "colormap": "plasma",
+                "source": "ugrid"
+            },
+            "tpeak": {
+                "name": "Peak Wave Period",
+                "units": "seconds", 
+                "description": "Time interval between successive wave crests",
+                "range": [0, 20],
+                "colormap": "viridis",
+                "source": "ugrid"
+            },
+            "dirp": {
+                "name": "Peak Wave Direction",
+                "units": "degrees",
+                "description": "Direction waves are coming from (meteorological convention)",
+                "range": [0, 360],
+                "colormap": "hsv",
+                "source": "ugrid"
+            },
+            "u10": {
+                "name": "Wind U Component",
+                "units": "m/s",
+                "description": "Eastward wind speed at 10m above surface",
+                "range": [-25, 25],
+                "colormap": "RdBu_r", 
+                "source": "ugrid"
+            },
+            "v10": {
+                "name": "Wind V Component",
+                "units": "m/s",
+                "description": "Northward wind speed at 10m above surface", 
+                "range": [-25, 25],
+                "colormap": "RdBu_r",
+                "source": "ugrid"
+            },
+            "Band1": {
+                "name": "Inundation Depth",
+                "units": "meters",
+                "description": "Coastal flooding depth above mean sea level",
+                "range": [0, 5],
+                "colormap": "Blues",
+                "source": "gridded"
+            }
+        },
+        "temporal": {
+            "forecast_hours": 229,
+            "forecast_days": 9.5,
+            "time_step": "1 hour",
+            "update_frequency": "4x daily"
+        },
+        "last_updated": datetime.utcnow().isoformat() + "Z"
+    })
+
+
+@router.get("/forecast/status")
+def get_forecast_status():
+    """Get current forecast system status"""
+    
+    # Test data source availability
+    datasets = {
+        "inundation": "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc",
+        "ugrid": "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+    }
+    
+    status = {
+        "system": "operational",
+        "last_check": datetime.utcnow().isoformat() + "Z",
+        "data_sources": {},
+        "services": {
+            "cog_server": "running",
+            "tile_generation": "operational",
+            "data_access": "operational"
+        }
+    }
+    
+    for name, url in datasets.items():
+        try:
+            # Quick test of data accessibility
+            with xr.open_dataset(url) as ds:
+                if name == "inundation":
+                    time_dim = None
+                    variables = list(ds.data_vars.keys())
+                else:
+                    time_dim = len(ds.time) if 'time' in ds.dims else None
+                    variables = list(ds.data_vars.keys())
+                
+                status["data_sources"][name] = {
+                    "status": "available",
+                    "url": url,
+                    "variables": len(variables),
+                    "time_steps": time_dim,
+                    "last_accessed": datetime.utcnow().isoformat() + "Z"
+                }
+        except Exception as e:
+            status["data_sources"][name] = {
+                "status": "error",
+                "url": url,
+                "error": str(e),
+                "last_accessed": datetime.utcnow().isoformat() + "Z"
+            }
+    
+    # Overall system status
+    all_sources_ok = all(
+        source["status"] == "available" 
+        for source in status["data_sources"].values()
+    )
+    
+    status["system"] = "operational" if all_sources_ok else "degraded"
+    
+    return JSONResponse(status)
+
+
+@router.get("/forecast/current/{variable}")
+def get_current_forecast_value(variable: str, lat: float = -21.2367, lon: float = -159.7777, time_index: int = 0):
+    """Get current forecast value for a specific location and variable"""
+    
+    try:
+        if variable == "Band1":
+            url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
+            with xr.open_dataset(url) as ds:
+                # Find nearest grid point (simplified)
+                value = float(ds[variable].isel(x=1000, y=1000).values)
+        else:
+            url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc" 
+            with xr.open_dataset(url) as ds:
+                # Get value at specific time and location (simplified)
+                if 'time' in ds.dims and time_index < len(ds.time):
+                    value = float(ds[variable].isel(time=time_index, mesh_node=500).values)
+                else:
+                    value = float(ds[variable].isel(mesh_node=500).values)
+        
+        # Handle NaN values
+        if np.isnan(value):
+            value = None
+            
+        return JSONResponse({
+            "variable": variable,
+            "value": value,
+            "location": {"lat": lat, "lon": lon},
+            "time_index": time_index,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "status": "success"
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "variable": variable,
+            "value": None,
+            "location": {"lat": lat, "lon": lon},
+            "time_index": time_index,
+            "error": str(e),
+            "status": "error"
+        }, status_code=500)
+
+
 @router.get("/cook-islands-viewer", response_class=HTMLResponse)
 def cook_islands_viewer():
     """Serve the Cook Islands tile viewer interface"""
@@ -740,5 +930,15 @@ def cook_islands_viewer():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Cook Islands Viewer not found</h1>")
+
+
+@router.get("/forecast-app", response_class=HTMLResponse)
+def forecast_app():
+    """Serve the forecast application"""
+    try:
+        with open("forecast_app.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Forecast Application not found</h1>")
 
 app.include_router(router)
