@@ -1,0 +1,615 @@
+nohup: ignoring input
+INFO:     Will watch for changes in these directories: ['/home/kishank/cog_tiler']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [31366] using StatReload
+INFO:     Started server process [31369]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:47868 - "GET /cog/docs HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=58, y=574, z=10) is outside bounds
+INFO:     127.0.0.1:47870 - "GET /cog/cook-islands/10/58/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=55, y=572, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=59, y=575, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=57, y=572, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=55, y=575, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=58, y=574, z=10) is outside bounds
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/10/55/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/10/59/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/10/55/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+ERROR:tile-server:Tile generation error: Tile(x=56, y=572, z=10) is outside bounds
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/10/57/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/10/58/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/10/56/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=56, y=575, z=10) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=55, y=573, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=59, y=572, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=56, y=573, z=10) is outside bounds
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/10/56/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+ERROR:tile-server:Tile generation error: Tile(x=58, y=575, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=57, y=575, z=10) is outside bounds
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/10/55/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/10/59/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/10/58/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/10/56/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/10/57/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=56, y=574, z=10) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=59, y=573, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=55, y=574, z=10) is outside bounds
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/10/56/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+ERROR:tile-server:Tile generation error: Tile(x=59, y=574, z=10) is outside bounds
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/10/59/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/10/55/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=58, y=573, z=10) is outside bounds
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/10/59/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/10/58/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/10/57/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=58, y=572, z=10) is outside bounds
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/10/58/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/10/57/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=230, y=2296, z=12) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/12/230/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+ERROR:tile-server:Tile generation error: Tile(x=229, y=2296, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=228, y=2297, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2297, z=12) is outside bounds
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/12/228/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/12/229/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/12/231/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/12/229/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/12/230/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=229, y=2297, z=12) is outside bounds
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/12/229/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/12/228/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2295, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=230, y=2297, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2294, z=12) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/12/231/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/12/231/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/12/230/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/12/230/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=228, y=2296, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2296, z=12) is outside bounds
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/12/228/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/12/231/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/12/228/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/12/229/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/13/460/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/13/459/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/13/461/4592.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/13/460/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/13/461/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/13/459/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=462, y=4590, z=13) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/13/462/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=462, y=4589, z=13) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/13/462/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/13/460/4592.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/13/461/4591.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/13/459/4591.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/13/461/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9181, z=14) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9182, z=14) is outside bounds
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/14/924/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/14/924/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/14/920/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/14/921/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/14/921/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/14/923/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/14/922/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/14/920/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/14/920/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/14/922/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/14/921/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/14/922/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/14/920/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/14/921/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/14/922/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/14/923/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/14/923/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/14/923/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9180, z=14) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9183, z=14) is outside bounds
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/14/924/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/14/924/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/16/3691/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/16/3689/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/16/3688/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/16/3690/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/16/3689/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/16/3690/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/16/3691/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/16/3689/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/16/3688/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/16/3691/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/16/3688/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/16/3690/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/16/3690/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/16/3692/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/16/3691/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/16/3692/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/16/3692/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/16/3692/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/16/3688/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/16/3689/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56851 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63715 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/17/7381/73456.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/17/7380/73455.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/17/7382/73456.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/17/7380/73457.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/17/7381/73457.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/17/7380/73456.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/17/7382/73457.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/17/7379/73457.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/17/7380/73458.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/17/7382/73455.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/17/7379/73455.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/17/7379/73456.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/17/7381/73458.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/17/7381/73455.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/17/7379/73458.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/17/7382/73458.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56388 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/17/7379/73454.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54305 - "GET /cog/cook-islands/17/7380/73453.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/17/7378/73454.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/17/7381/73454.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/17/7380/73454.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/17/7378/73456.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/17/7382/73453.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/17/7378/73453.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/17/7379/73453.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56858 - "GET /cog/cook-islands/17/7378/73455.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /cog/cook-islands/17/7381/73453.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/15/1844/18363.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/15/1844/18364.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/15/1845/18363.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/15/1845/18364.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/15/1845/18365.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/15/1844/18362.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:63715 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:61587 - "GET /cog/cook-islands/15/1843/18365.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49619 - "GET /cog/cook-islands/15/1845/18362.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51997 - "GET /cog/cook-islands/15/1846/18364.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/15/1843/18362.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54431 - "GET /cog/cook-islands/15/1846/18365.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59049 - "GET /cog/cook-islands/15/1844/18365.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51997 - "GET /cog/cook-islands/15/1846/18363.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61587 - "GET /cog/cook-islands/15/1843/18363.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49619 - "GET /cog/cook-islands/15/1846/18362.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:59136 - "GET /cog/cook-islands/15/1843/18364.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63715 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=58, y=574, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=55, y=572, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=59, y=572, z=10) is outside bounds
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/10/55/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+ERROR:tile-server:Tile generation error: Tile(x=58, y=573, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=55, y=574, z=10) is outside bounds
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/10/58/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/10/55/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/10/59/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/10/58/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/10/57/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=56, y=574, z=10) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=55, y=575, z=10) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/10/56/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+ERROR:tile-server:Tile generation error: Tile(x=58, y=572, z=10) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=56, y=572, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=57, y=575, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=56, y=573, z=10) is outside bounds
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/10/55/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/10/58/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/10/57/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/10/56/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/10/56/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=59, y=574, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=57, y=572, z=10) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=55, y=573, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=58, y=575, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=59, y=573, z=10) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=56, y=575, z=10) is outside bounds
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/10/57/572.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/10/55/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/10/59/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/10/59/573.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/10/58/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/10/56/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=59, y=575, z=10) is outside bounds
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/10/59/575.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/10/57/574.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=228, y=2297, z=12) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/12/228/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=230, y=2296, z=12) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2295, z=12) is outside bounds
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/12/230/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/12/231/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/12/229/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62964 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/12/230/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/12/230/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=229, y=2297, z=12) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=232, y=2294, z=12) is outside bounds
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/12/229/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/12/232/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=232, y=2295, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=230, y=2297, z=12) is outside bounds
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/12/232/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/12/230/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/12/228/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/12/228/2295.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2297, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=232, y=2296, z=12) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=228, y=2296, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=229, y=2296, z=12) is outside bounds
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/12/231/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/12/228/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+ERROR:tile-server:Tile generation error: Tile(x=232, y=2297, z=12) is outside bounds
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/12/229/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/12/229/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/12/232/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/12/232/2297.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2296, z=12) is outside bounds
+ERROR:tile-server:Tile generation error: Tile(x=231, y=2294, z=12) is outside bounds
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/12/231/2296.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/12/231/2294.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/14/922/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/14/921/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/14/921/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/14/922/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/14/923/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/14/923/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/14/921/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9181, z=14) is outside bounds
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/14/923/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62964 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/14/924/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/14/920/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/14/920/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/14/923/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9182, z=14) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9180, z=14) is outside bounds
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/14/924/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/14/924/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/14/922/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/14/920/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/14/921/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/14/920/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+ERROR:tile-server:Tile generation error: Tile(x=924, y=9183, z=14) is outside bounds
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/14/924/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/14/922/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/16/3692/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/16/3689/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/16/3690/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62964 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/16/3690/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/16/3689/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/16/3691/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/16/3689/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/16/3692/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/16/3691/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/16/3688/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/16/3691/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/16/3688/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/16/3692/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/16/3690/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/16/3692/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/16/3689/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/16/3688/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/16/3691/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/16/3690/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/16/3688/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62964 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:63922 - "GET /cog/cook-islands/16/3685/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/16/3684/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/16/3686/36728.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/16/3686/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/16/3687/36727.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51762 - "GET /cog/cook-islands/16/3685/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:62456 - "GET /cog/cook-islands/16/3686/36726.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /cog/cook-islands/16/3685/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58526 - "GET /cog/cook-islands/16/3684/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57057 - "GET /cog/cook-islands/16/3687/36729.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51010 - "GET /cog/cook-islands/14/922/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57848 - "GET /cog/cook-islands/14/921/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60854 - "GET /cog/cook-islands/14/922/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59131 - "GET /cog/cook-islands/14/921/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /cog/cook-islands/14/923/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53998 - "GET /cog/cook-islands/14/923/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:53998 - "GET /cog/cook-islands/14/920/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51010 - "GET /cog/cook-islands/14/922/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59131 - "GET /cog/cook-islands/14/920/9182.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57848 - "GET /cog/cook-islands/14/923/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /cog/cook-islands/14/921/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60854 - "GET /cog/cook-islands/14/920/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:53998 - "GET /cog/cook-islands/14/920/9181.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /cog/cook-islands/14/922/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59131 - "GET /cog/cook-islands/14/923/9183.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51010 - "GET /cog/cook-islands/14/921/9180.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:51010 - "GET /cog/cook-islands/13/460/4591.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /cog/cook-islands/13/460/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60854 - "GET /cog/cook-islands/13/459/4591.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57848 - "GET /cog/cook-islands/13/461/4591.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53998 - "GET /cog/cook-islands/13/461/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59131 - "GET /cog/cook-islands/13/459/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:53998 - "GET /cog/cook-islands/13/458/4590.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59131 - "GET /cog/cook-islands/13/460/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60854 - "GET /cog/cook-islands/13/458/4591.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /cog/cook-islands/13/458/4592.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57848 - "GET /cog/cook-islands/13/459/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51010 - "GET /cog/cook-islands/13/461/4592.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:cog-tiles:COG cache HIT (fast-path) job_id=fe638ff08128872c
+INFO:     127.0.0.1:57848 - "GET /cog/cook-islands/13/458/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60854 - "GET /cog/cook-islands/13/459/4592.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59131 - "GET /cog/cook-islands/13/460/4592.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53998 - "GET /cog/cook-islands/13/461/4589.png?variable=Band1&time=0&vmin=0&vmax=3&colormap=Blues HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62964 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49867 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54005 - "GET /cog/forecast/current/Band1?time_index=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45970 - "GET /cog/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63603 - "GET /cog/?id=c59f2e4e-9c64-434d-8cd8-d2893add7965&vscodeBrowserReqId=1758687339879 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58045 - "GET /cog/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58045 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58569 - "GET /cog/forecast_app HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55868 - "GET /cog/forecast_app HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55868 - "GET /cog/forecast_app HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52996 - "GET /cog/forecast_app HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52996 - "GET /cog/forecast_app HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53772 - "GET /cog/forecast-app HTTP/1.1" 200 OK
+curl error details: 
+INFO:     127.0.0.1:55886 - "GET /cog/cook-islands-ugrid-direct/10/57/574.png?variable=hs&time=0&vmin=0&vmax=0.05&colormap=plasma HTTP/1.1" 200 OK
+INFO:     Stopping reloader process [31366]

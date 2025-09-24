@@ -390,31 +390,31 @@
                 units: 'meters',
                 colorScale: 'plasma',
                 vmin: 0,
-                vmax: 0.05,
+                vmax: 4.0,
                 gradient: 'linear-gradient(90deg, #0d0887 0%, #7e03a8 25%, #cc4778 50%, #f89441 75%, #f0f921 100%)'
             },
             'tpeak': {
                 name: 'Peak Wave Period',
                 units: 'seconds',
                 colorScale: 'viridis',
-                vmin: 2.005,
-                vmax: 2.015,
+                vmin: 2,
+                vmax: 20,
                 gradient: 'linear-gradient(90deg, #440154 0%, #31688e 25%, #35b779 50%, #8fd744 75%, #fde725 100%)'
             },
             'u10': {
                 name: 'Wind U Component',
                 units: 'm/s',
                 colorScale: 'RdBu_r',
-                vmin: 4.5,
-                vmax: 5.5,
+                vmin: -15,
+                vmax: 15,
                 gradient: 'linear-gradient(90deg, #67001f 0%, #d6604d 25%, #f7f7f7 50%, #4393c3 75%, #053061 100%)'
             },
             'v10': {
                 name: 'Wind V Component', 
                 units: 'm/s',
                 colorScale: 'RdBu_r',
-                vmin: 1.5,
-                vmax: 3.0,
+                vmin: -15,
+                vmax: 15,
                 gradient: 'linear-gradient(90deg, #67001f 0%, #d6604d 25%, #f7f7f7 50%, #4393c3 75%, #053061 100%)'
             },
             'Band1': {
@@ -563,10 +563,10 @@
             
             // Detect if we're in a Codespace and use the appropriate protocol
             const isCodespace = window.location.hostname.includes('app.github.dev');
-            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8000';
+            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
             
             if (currentSource === 'ugrid') {
-                endpoint = `${baseUrl}/cog/cook-islands-ugrid-direct/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
+                endpoint = `${baseUrl}/cog/cook-islands-cog/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
             } else {
                 endpoint = `${baseUrl}/cog/cook-islands/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
             }
@@ -607,7 +607,7 @@
             
             // Try to fetch real current values from API
             const isCodespace = window.location.hostname.includes('app.github.dev');
-            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8000';
+            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
             
             fetch(`${baseUrl}/cog/forecast/current/${currentVariable}?time_index=${currentTime}`)
                 .then(response => response.json())

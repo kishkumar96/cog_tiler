@@ -1,14 +1,18 @@
-import logging
 import os
-import tempfile
+import sys
+import time
+import uuid
 import json
 import hashlib
+import tempfile
+import logging
+from logging.config import dictConfig
 from io import BytesIO
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, Union
 from urllib.parse import unquote, urlencode
 from uuid import uuid4
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import matplotlib
 matplotlib.use("Agg")
@@ -17,29 +21,75 @@ import numpy as np
 import rasterio
 from rasterio.transform import from_bounds
 from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
-from fastapi import FastAPI, Response, HTTPException, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+
+from fastapi import FastAPI, Response, HTTPException, Query, APIRouter
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response as StarletteResponse
+
 from rio_tiler.io import Reader
 from PIL import Image
 from pydantic import BaseModel
-from fastapi import APIRouter
 from filelock import FileLock
 import xarray as xr
 
 from plotters import draw_plot, AVAILABLE_PLOTS
 from data_reader import load_plot_ready_arrays
+from cog_generator import COGGenerator
 
-# Logging
-logging.basicConfig(level=logging.INFO)
+# -----------------------------------------------------------------------------
+# Logging (structured, uvicorn-friendly)
+# -----------------------------------------------------------------------------
+dictConfig({
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "format": (
+                '{"ts":"%(asctime)s","lvl":"%(levelname)s","logger":"%(name)s",'
+                '"msg":"%(message)s","module":"%(module)s","func":"%(funcName)s",'
+                '"lineno":%(lineno)d,"request_id":"%(request_id)s"}'
+            ),
+            "datefmt": "%Y-%m-%dT%H:%M:%S%z",
+        },
+        "console": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+            "datefmt": "%H:%M:%S",
+        },
+    },
+    "handlers": {
+        "stderr": {
+            "class": "logging.StreamHandler",
+            "stream": sys.stderr,
+            "formatter": "console",  # switch to "json" in prod
+        }
+    },
+    "loggers": {
+        "uvicorn": {"handlers": ["stderr"], "level": "INFO", "propagate": False},
+        "uvicorn.error": {"handlers": ["stderr"], "level": "INFO", "propagate": False},
+        "uvicorn.access": {"handlers": ["stderr"], "level": "INFO", "propagate": False},
+        "tile-server": {"handlers": ["stderr"], "level": "INFO", "propagate": False},
+        "cog-tiles": {"handlers": ["stderr"], "level": "INFO", "propagate": False},
+    },
+    "root": {"handlers": ["stderr"], "level": "INFO"},
+})
+
 logger = logging.getLogger("tile-server")
-logger22 = logging.getLogger("cog-tiles")
+cog_logger = logging.getLogger("cog-tiles")
 
+# -----------------------------------------------------------------------------
 # Optional GDAL/RasterIO tuning
+# -----------------------------------------------------------------------------
 os.environ.setdefault("GDAL_CACHEMAX", "512")
 os.environ.setdefault("GDAL_NUM_THREADS", "ALL_CPUS")
 os.environ.setdefault("GDAL_TIFF_OVR_BLOCKSIZE", "128")
 
+# -----------------------------------------------------------------------------
+# FastAPI app + middleware
+# -----------------------------------------------------------------------------
 app = FastAPI(
     docs_url="/cog/docs",
     redoc_url="/cog/redoc",
@@ -48,30 +98,38 @@ app = FastAPI(
 )
 router = APIRouter(prefix="/cog")
 
-@router.get("/")
-def read_root():
-    return {
-        "message": "🌊 Cook Islands Wave Forecast API",
-        "applications": {
-            "forecast_app": "/cog/forecast-app",
-            "ugrid_comparison": "/cog/ugrid-comparison",
-            "index": "/cog/index"
-        },
-        "status": "running"
-    }
+class RequestContextMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        rid = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        start = time.perf_counter()
 
-# Add root redirect outside of router
-@app.get("/")
-def root_redirect():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/cog/index")
+        # include request_id in all subsequent logs for this request via 'extra'
+        try:
+            response: StarletteResponse = await call_next(request)
+        except Exception:
+            logger.exception(
+                f"Unhandled error ({rid}) on {request.method} {request.url.path}",
+                extra={"request_id": rid},
+            )
+            raise
+        finally:
+            dur_ms = int((time.perf_counter() - start) * 1000)
+            logger.info(
+                f"{request.method} {request.url.path} -> {dur_ms}ms",
+                extra={"request_id": rid},
+            )
+
+        response.headers["X-Request-ID"] = rid
+        return response
+
+app.add_middleware(RequestContextMiddleware)
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -79,8 +137,9 @@ app.add_middleware(
 CACHE_DIR = Path(os.environ.get("CACHE_DIR", "cache"))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# ---------- Models ----------
-
+# -----------------------------------------------------------------------------
+# Models
+# -----------------------------------------------------------------------------
 class CogGenerateRequest(BaseModel):
     layer_id: str
     url: str
@@ -97,7 +156,6 @@ class CogGenerateRequest(BaseModel):
     plot: str = "contourf"
     plot_options: Optional[Dict[str, Any]] = None
 
-
 class CogGenerateResponse(BaseModel):
     job_id: str
     cog_path: str
@@ -108,9 +166,11 @@ class CogGenerateResponse(BaseModel):
     crs: str
     tile_querystring: str
 
-# ---------- Helpers ----------
-
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
 def _hash_params(data: dict) -> str:
+    # ensure 'time' is string for consistent hashing
     if data.get("time") is not None:
         data["time"] = str(data["time"])
     payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
@@ -118,6 +178,7 @@ def _hash_params(data: dict) -> str:
 
 def _normalize_url_param(u: str) -> str:
     decoded = unquote(u)
+    # double-unquote if still encoded
     if "%3A" in decoded or "%2F" in decoded:
         decoded = unquote(decoded)
     return decoded
@@ -181,7 +242,7 @@ def _safe_unlink(p: Path):
 
 def _get_cmap(name: str):
     try:
-        return plt.get_cmap(name)  # avoid .copy() for older Matplotlib
+        return plt.get_cmap(name)
     except Exception:
         return plt.get_cmap("RdBu_r")
 
@@ -202,27 +263,38 @@ def _parse_plot_options(plot_options: Optional[str]) -> Dict[str, Any]:
         return {}
 
 def _tile_to_bounds(x: int, y: int, z: int) -> dict:
-    """Convert tile coordinates to geographic bounds (Web Mercator to WGS84)"""
+    """Convert XYZ tile to geographic bounds (WGS84)."""
     import math
-    
-    def tile_to_lat_lon(x, y, z):
-        n = 2.0 ** z
-        lon_deg = x / n * 360.0 - 180.0
-        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y / n)))
+    def tile_to_lat_lon(tx, ty, tz):
+        n = 2.0 ** tz
+        lon_deg = tx / n * 360.0 - 180.0
+        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ty / n)))
         lat_deg = math.degrees(lat_rad)
         return lat_deg, lon_deg
-    
-    # Get bounds of the tile
+
     lat_north, lon_west = tile_to_lat_lon(x, y, z)
     lat_south, lon_east = tile_to_lat_lon(x + 1, y + 1, z)
-    
-    return {
-        "lon_min": lon_west,
-        "lon_max": lon_east,
-        "lat_min": lat_south,
-        "lat_max": lat_north
-    }
 
+    return {"lon_min": lon_west, "lon_max": lon_east, "lat_min": lat_south, "lat_max": lat_north}
+
+def _read_tile(reader: Reader, x: int, y: int, z: int) -> Image.Image:
+    t0 = time.perf_counter()
+    tile_data, mask = reader.tile(x, y, z)
+    dur = int((time.perf_counter() - t0) * 1000)
+    logger.debug(f"rio-tiler tile z={z} x={x} y={y} took {dur}ms")
+    tile_data = tile_data.astype(np.uint8)
+    mask = mask.astype(np.uint8)
+    arr = np.transpose(tile_data, (1, 2, 0))
+    if arr.shape[2] == 4:
+        rgba = arr.copy()
+        rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
+    else:
+        rgba = np.dstack([arr, mask])
+    return Image.fromarray(rgba, "RGBA")
+
+# -----------------------------------------------------------------------------
+# Core: ensure COG exists/build
+# -----------------------------------------------------------------------------
 def ensure_cog_from_params(
     *,
     layer_id: str,
@@ -257,17 +329,18 @@ def ensure_cog_from_params(
     lock_path = str(out_cog) + ".lock"
     tmp_out = Path(str(out_cog) + ".tmp")
 
-    # Fast-path: return if COG exists and nonzero
-    # DEV: Disable cache read post-lock
+    # Fast-path cache check
     if out_cog.exists() and out_cog.stat().st_size > 0:
-        logger22.info(f"COG cache HIT (fast-path) job_id={job_id}")
+        logger.info(f"COG cache HIT (fast-path) job_id={job_id}")
         return out_cog
 
     with FileLock(lock_path, timeout=300):
-        # DEV: Disable cache read post-lock
+        # Re-check under lock
         if out_cog.exists() and out_cog.stat().st_size > 0:
-            logger22.info(f"COG cache HIT (post-lock) job_id={job_id}")
+            logger.info(f"COG cache HIT (post-lock) job_id={job_id}")
             return out_cog
+
+        logger.info(f"COG cache MISS job_id={job_id} -> building")
 
         tmp_dir = Path(tempfile.gettempdir())
         uid = uuid4().hex
@@ -275,7 +348,7 @@ def ensure_cog_from_params(
         temp_tif_3857 = tmp_dir / f"rgba_3857_{uid}.tif"
 
         try:
-            # Load arrays ready for plotting from the data reader
+            # Load arrays ready for plotting
             lons_plot, lats_plot, data_ma = load_plot_ready_arrays(
                 layer_id=params["layer_id"],
                 url=params["url"],
@@ -303,8 +376,9 @@ def ensure_cog_from_params(
             except Exception:
                 pass
 
-            # Plot only the subset (prevents "stretching" across the full global axis)
-            fig, ax = plt.subplots(figsize=(10, 6), dpi=256 / 2.54)
+            # Render figure
+            PIXELS_PER_INCH = 256 / 2.54  # 256 px per inch
+            fig, ax = plt.subplots(figsize=(10, 6), dpi=PIXELS_PER_INCH)
             fig.patch.set_alpha(0)
             ax.set_facecolor((0, 0, 0, 0))
             ax.axis("off")
@@ -326,7 +400,7 @@ def ensure_cog_from_params(
                 logger.exception("draw_plot failed for plot=%s with options=%s", plot, options)
                 raise
 
-            # Clamp axes to subset extent
+            # Clamp axes to subset extent (avoid global stretch)
             ax.set_xlim(float(lons_plot.min()), float(lons_plot.max()))
             ax.set_ylim(float(lats_plot.min()), float(lats_plot.max()))
 
@@ -341,7 +415,7 @@ def ensure_cog_from_params(
         # Prepare RGBA for GeoTIFF
         image = image.transpose((2, 0, 1)).astype("uint8")
 
-        # Geo-reference using the same subset bounds (fixes longitude stretching)
+        # Geo-reference to subset bounds
         left, right = float(lons_plot.min()), float(lons_plot.max())
         bottom, top = float(lats_plot.min()), float(lats_plot.max())
         transform = from_bounds(left, bottom, right, top, w, h)
@@ -420,10 +494,28 @@ def ensure_cog_from_params(
             config={"GDAL_NUM_THREADS": "ALL_CPUS", "GDAL_TIFF_OVR_BLOCKSIZE": "128"},
         )
         os.replace(tmp_out, out_cog)
-        logger22.info(f"[COG] build COMPLETE ")
+        cog_logger.info(f"[COG] build COMPLETE job_id={job_id} size={out_cog.stat().st_size}")
         return out_cog
 
-# ---------- Routes ----------
+# -----------------------------------------------------------------------------
+# Routes
+# -----------------------------------------------------------------------------
+@router.get("/")
+def read_root():
+    return {
+        "message": "🌊 Cook Islands Wave Forecast API",
+        "applications": {
+            "forecast_app": "/cog/forecast-app",
+            "ugrid_comparison": "/cog/ugrid-comparison",
+            "index": "/cog/index"
+        },
+        "status": "running"
+    }
+
+# Root redirect outside of router
+@app.get("/")
+def root_redirect():
+    return RedirectResponse(url="/cog/index")
 
 DEFAULT_URL = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
 DEFAULT_VAR = "hs"
@@ -434,8 +526,6 @@ DEFAULT_PARAMS = dict(
     lon_min=-162.0, lon_max=-158.0, lat_min=-22.0, lat_max=-19.0,
     plot="contourf", plot_options=None,
 )
-
-# Lazy default COG: don't fetch at import time
 DEFAULT_COG: Optional[Path] = None
 
 @router.get("/cook-islands/{z}/{x}/{y}.png")
@@ -448,23 +538,14 @@ def cook_islands_tiles(
     vmax: float = Query(5.0, description="Max value for colormap"),
     use_local: bool = Query(False, description="Use local test data (fallback for network issues)"),
 ):
-    """
-    Cook Islands specific tile endpoint with defaults for Rarotonga inundation data
-    """
-    # Cook Islands defaults - use real THREDDS data by default
-    if use_local:
-        cook_islands_url = "/workspaces/cog_tiler/cook_islands_test_data.nc"
-    else:
-        cook_islands_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
-    
-    # Rarotonga bounds (approximate)
-    rarotonga_bounds = {
-        "lon_min": -159.9,
-        "lon_max": -159.6, 
-        "lat_min": -21.3,
-        "lat_max": -21.1
-    }
-    
+    """Cook Islands specific tile endpoint with defaults for Rarotonga inundation data."""
+    cook_islands_url = (
+        "/workspaces/cog_tiler/cook_islands_test_data.nc"
+        if use_local else
+        "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
+    )
+    rarotonga_bounds = {"lon_min": -159.9, "lon_max": -159.6, "lat_min": -21.3, "lat_max": -21.1}
+
     try:
         cog_path = ensure_cog_from_params(
             layer_id="cook_islands_rarotonga",
@@ -479,28 +560,16 @@ def cook_islands_tiles(
             plot="contourf",
             plot_options={"antialiased": True, "alpha": 0.8}
         )
-        
         with Reader(str(cog_path)) as reader:
             try:
-                tile_data, mask = reader.tile(x, y, z)
-                tile_data = tile_data.astype(np.uint8)
-                mask = mask.astype(np.uint8)
-                arr = np.transpose(tile_data, (1, 2, 0))
-                if arr.shape[2] == 4:
-                    rgba = arr.copy()
-                    rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
-                else:
-                    rgba = np.dstack([arr, mask])
-                img = Image.fromarray(rgba, "RGBA")
-            except Exception as e:
-                logger.error(f"Tile generation error: {e}")
+                img = _read_tile(reader, x, y, z)
+            except Exception:
+                logger.exception(f"Tile generation error z={z} x={x} y={y}")
                 img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-                
-    except Exception as e:
-        logger.error(f"COG generation failed for Cook Islands: {e}")
-        # Return transparent tile on error
+    except Exception:
+        logger.exception("COG generation failed for Cook Islands")
         img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    
+
     return _png_response(img)
 
 @router.get("/cook-islands-ugrid/{z}/{x}/{y}.png")
@@ -514,16 +583,14 @@ def cook_islands_ugrid_tiles(
     use_direct: bool = Query(True, description="Use direct triangular mesh (recommended)"),
 ):
     """
-    Cook Islands UGRID tiles - NOW USES DIRECT TRIANGULAR MESH BY DEFAULT
-    Set use_direct=false for old interpolated approach
+    Cook Islands UGRID tiles - NOW USES DIRECT TRIANGULAR MESH BY DEFAULT.
+    Set use_direct=false for old interpolated approach.
     """
+    ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+
     if use_direct:
-        # Use your superior direct triangular mesh approach
         from ugrid_direct import create_direct_ugrid_tile
-        
         bounds = _tile_to_bounds(x, y, z)
-        ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
-        
         try:
             tile_bytes = create_direct_ugrid_tile(
                 url=ugrid_url,
@@ -539,57 +606,130 @@ def cook_islands_ugrid_tiles(
                 vmax=vmax
             )
             return Response(content=tile_bytes, media_type="image/png")
-        except Exception as e:
-            logger.error(f"Direct UGRID tile error: {e}")
+        except Exception:
+            logger.exception("Direct UGRID tile error")
             img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
             return _png_response(img)
-    else:
-        # Fall back to old interpolated approach
-        ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
-        
-        # Rarotonga bounds (slightly expanded for UGRID)
-        rarotonga_bounds = {
-            "lon_min": -159.95,
-            "lon_max": -159.55, 
-            "lat_min": -21.35,
-            "lat_max": -21.05
+
+    # Fallback to interpolated approach
+    rarotonga_bounds = {"lon_min": -159.95, "lon_max": -159.55, "lat_min": -21.35, "lat_max": -21.05}
+    try:
+        cog_path = ensure_cog_from_params(
+            layer_id="cook_islands_ugrid",
+            url=ugrid_url,
+            variable=variable,
+            time=time,
+            colormap=colormap,
+            vmin=vmin or -2.0,
+            vmax=vmax or 3.0,
+            step=0.1,
+            **rarotonga_bounds,
+            plot="contourf",
+            plot_options={"antialiased": True, "alpha": 0.9}
+        )
+        with Reader(str(cog_path)) as reader:
+            try:
+                img = _read_tile(reader, x, y, z)
+            except Exception:
+                logger.exception("UGRID tile generation error (interpolated)")
+                img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    except Exception:
+        logger.exception("UGRID COG generation failed (interpolated)")
+        img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+
+    return _png_response(img)
+
+# Initialize COG generator
+cog_generator = COGGenerator()
+
+@router.get("/cogs/list")
+def list_available_cogs():
+    """List all available COG files with metadata."""
+    try:
+        available_cogs = cog_generator.list_available_cogs()
+        return {"status": "success", "cogs": available_cogs, "count": len(available_cogs)}
+    except Exception as e:
+        logger.exception("list_available_cogs error")
+        return {"status": "error", "message": str(e)}
+
+@router.post("/cogs/generate")
+def generate_cog(
+    variable: str = Query("hs", description="Variable to generate COG for"),
+    time_index: int = Query(0, description="Time index"),
+    vmin: float = Query(0.0, description="Min value"),
+    vmax: float = Query(4.0, description="Max value"),
+    colormap: str = Query("plasma", description="Colormap")
+):
+    """Manually trigger COG generation."""
+    try:
+        cog_path = cog_generator.generate_wave_cog(
+            variable=variable, time_index=time_index, vmin=vmin, vmax=vmax, colormap=colormap
+        )
+        return {
+            "status": "success",
+            "cog_path": str(cog_path),
+            "message": f"COG generated successfully for {variable} at time {time_index}"
         }
-        
-        try:
-            cog_path = ensure_cog_from_params(
-                layer_id="cook_islands_ugrid",
-                url=ugrid_url,
-                variable=variable,
-                time=time,
-                colormap=colormap,
-                vmin=vmin or -2.0,
-                vmax=vmax or 3.0,
-                step=0.1,
-                **rarotonga_bounds,
-                plot="contourf",
-                plot_options={"antialiased": True, "alpha": 0.9}
-            )
-            
-            with Reader(str(cog_path)) as reader:
-                try:
-                    tile_data, mask = reader.tile(x, y, z)
-                    tile_data = tile_data.astype(np.uint8)
-                    mask = mask.astype(np.uint8)
-                    arr = np.transpose(tile_data, (1, 2, 0))
-                    if arr.shape[2] == 4:
-                        rgba = arr.copy()
-                        rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
-                    else:
-                        rgba = np.dstack([arr, mask])
-                    img = Image.fromarray(rgba, "RGBA")
-                except Exception as e:
-                    logger.error(f"UGRID tile generation error: {e}")
-                    img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-                    
-        except Exception as e:
-            logger.error(f"UGRID COG generation failed: {e}")
-            img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    
+    except Exception as e:
+        logger.exception("generate_cog error")
+        return {"status": "error", "message": str(e)}
+
+@router.delete("/cogs/cleanup")
+def cleanup_old_cogs(max_age_hours: int = Query(24, description="Max age in hours")):
+    """Clean up old COG files."""
+    try:
+        cog_generator.cleanup_old_cogs(max_age_hours)
+        return {"status": "success", "message": f"Cleaned up COGs older than {max_age_hours} hours"}
+    except Exception as e:
+        logger.exception("cleanup_old_cogs error")
+        return {"status": "error", "message": str(e)}
+
+@router.get("/cook-islands-cog/{z}/{x}/{y}.png")
+def cook_islands_cog_tiles(
+    z: int, x: int, y: int,
+    variable: str = Query("hs", description="Variable to plot"),
+    time: int = Query(0, description="Time index"),
+    colormap: str = Query("plasma", description="Matplotlib colormap"),
+    vmin: Optional[float] = Query(0.0, description="Min value for colormap"),
+    vmax: Optional[float] = Query(4.0, description="Max value for colormap"),
+):
+    """
+    Cook Islands wave forecast tiles served from pre-generated COG files.
+    Much faster than real-time processing!
+    """
+    try:
+        logger.info(f"COG request: {variable} t={time} z={z} x={x} y={y}")
+        cog_path = cog_generator.generate_wave_cog(
+            variable=variable, time_index=time, vmin=vmin, vmax=vmax, colormap=colormap
+        )
+        logger.info(f"COG path: {cog_path}")
+        with Reader(str(cog_path)) as reader:
+            try:
+                tile_data, mask = reader.tile(x, y, z)
+                # Normalize to uint8 if needed
+                if tile_data.dtype != np.uint8:
+                    tile_data = (tile_data * 255).astype(np.uint8)
+
+                if tile_data.shape[0] == 4:  # RGBA
+                    rgba = np.transpose(tile_data, (1, 2, 0))
+                elif tile_data.shape[0] == 3:  # RGB
+                    rgb = np.transpose(tile_data, (1, 2, 0))
+                    alpha = (mask * 255).astype(np.uint8)
+                    rgba = np.dstack([rgb, alpha])
+                else:  # Single band
+                    gray = np.transpose(tile_data, (1, 2, 0))
+                    alpha = (mask * 255).astype(np.uint8)
+                    rgba = np.dstack([gray, gray, gray, alpha])
+
+                img = Image.fromarray(rgba, "RGBA")
+                return _png_response(img)
+            except Exception:
+                logger.exception("Tile extraction error (pre-generated COG)")
+                img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+                return _png_response(img)
+    except Exception:
+        logger.exception("COG tile generation failed")
+        img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
         return _png_response(img)
 
 @router.get("/cook-islands-ugrid-direct/{z}/{x}/{y}.png")
@@ -602,18 +742,14 @@ def cook_islands_ugrid_direct_tiles(
     vmax: Optional[float] = Query(None, description="Max value for colormap"),
 ):
     """
-    Cook Islands UGRID direct triangular mesh tiles - NO INTERPOLATION ARTIFACTS
-    Preserves original mesh structure for clean island boundaries
+    Cook Islands UGRID direct triangular mesh tiles - NO INTERPOLATION ARTIFACTS.
+    Preserves original mesh structure for clean island boundaries.
     """
     from ugrid_direct import create_direct_ugrid_tile
-    
-    # Convert tile coordinates to geographic bounds
     bounds = _tile_to_bounds(x, y, z)
-    
     ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
-    
+
     try:
-        # Generate tile using direct triangular mesh approach
         tile_bytes = create_direct_ugrid_tile(
             url=ugrid_url,
             variable=variable,
@@ -627,12 +763,9 @@ def cook_islands_ugrid_direct_tiles(
             vmin=vmin,
             vmax=vmax
         )
-        
         return Response(content=tile_bytes, media_type="image/png")
-        
-    except Exception as e:
-        logger.error(f"Direct UGRID tile error: {e}")
-        # Return transparent tile on error
+    except Exception:
+        logger.exception("Direct UGRID tile error")
         img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
         return _png_response(img)
 
@@ -649,17 +782,9 @@ def tiles_static(z: int, x: int, y: int):
 
     with Reader(str(DEFAULT_COG)) as reader:
         try:
-            tile_data, mask = reader.tile(x, y, z)
-            tile_data = tile_data.astype(np.uint8)
-            mask = mask.astype(np.uint8)
-            arr = np.transpose(tile_data, (1, 2, 0))
-            if arr.shape[2] == 4:
-                rgba = arr.copy()
-                rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
-            else:
-                rgba = np.dstack([arr, mask])
-            img = Image.fromarray(rgba, "RGBA")
+            img = _read_tile(reader, x, y, z)
         except Exception:
+            logger.exception("tiles_static read error")
             img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     return _png_response(img)
 
@@ -678,7 +803,7 @@ def tiles_dynamic(
     lon_max: float = Query(300.0),
     lat_min: float = Query(-45.0),
     lat_max: float = Query(45.0),
-    plot: str = Query("contourf", description=f"Plot type: {'|'.join(AVAILABLE_PLOTS)}"),
+    plot: str = Query("contourf", description=lambda: f"Plot type: {'|'.join(AVAILABLE_PLOTS)}"),
     plot_options: Optional[str] = Query(
         None,
         description="JSON dict of matplotlib kwargs; for 'discrete', include ranges (list) and colors (list).",
@@ -703,74 +828,16 @@ def tiles_dynamic(
     try:
         cog_path = ensure_cog_from_params(**params)
     except Exception as e:
+        logger.exception("tiles_dynamic ensure_cog_from_params error")
         raise HTTPException(status_code=400, detail=str(e))
 
     with Reader(str(cog_path)) as reader:
         try:
-            tile_data, mask = reader.tile(x, y, z)
-            tile_data = tile_data.astype(np.uint8)
-            mask = mask.astype(np.uint8)
-            arr = np.transpose(tile_data, (1, 2, 0))
-            if arr.shape[2] == 4:
-                rgba = arr.copy()
-                rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
-            else:
-                rgba = np.dstack([arr, mask])
-            img = Image.fromarray(rgba, "RGBA")
+            img = _read_tile(reader, x, y, z)
         except Exception:
+            logger.exception("tiles_dynamic tile read error")
             img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     return _png_response(img)
-
-
-@router.post("/generate", response_model=CogGenerateResponse)
-def cog_generate(payload: CogGenerateRequest):
-    options = payload.plot_options or {}
-    params = canonicalize_params(
-        layer_id=payload.layer_id,
-        url=payload.url,
-        variable=payload.variable,
-        time=payload.time,
-        colormap=payload.colormap,
-        vmin=payload.vmin,
-        vmax=payload.vmax,
-        step=payload.step,
-        lon_min=payload.lon_min,
-        lon_max=payload.lon_max,
-        lat_min=payload.lat_min,
-        lat_max=payload.lat_max,
-        plot=payload.plot,
-        plot_options=options,
-    )
-    job_id = _hash_params(params)
-    cog_path = ensure_cog_from_params(**params)
-
-    exists = cog_path.exists()
-    size_bytes = cog_path.stat().st_size if exists else 0
-
-    bounds_3857 = (0.0, 0.0, 0.0, 0.0)
-    bounds_4326 = (0.0, 0.0, 0.0, 0.0)
-    crs = "EPSG:3857"
-    if exists:
-        with rasterio.open(cog_path) as src:
-            crs = src.crs.to_string() if src.crs else "EPSG:3857"
-            b = src.bounds
-            bounds_3857 = (b.left, b.bottom, b.right, b.top)
-            try:
-                bounds_4326 = transform_bounds(src.crs, "EPSG:4326", *bounds_3857, densify_pts=21)
-            except Exception:
-                pass
-
-    tile_params = dict(params)
-    return CogGenerateResponse(
-        job_id=job_id,
-        cog_path=str(cog_path),
-        exists=exists,
-        size_bytes=size_bytes,
-        bounds_3857=bounds_3857,
-        bounds_4326=bounds_4326,
-        crs=crs,
-        tile_querystring=urlencode(tile_params),
-    )
 
 @router.get("/cook-islands/wms-comparison")
 def cook_islands_wms_comparison(
@@ -779,44 +846,37 @@ def cook_islands_wms_comparison(
     zoom: int = Query(10, description="Zoom level for comparison"),
 ):
     """
-    Compare Cook Islands COG tiles with the original WMS service
+    Compare Cook Islands COG tiles with the original WMS service.
     """
     wms_url = "https://gemthreddshpc.spc.int/thredds/wms/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
-    
-    # Center tile for Rarotonga at given zoom level
-    # Approximate center: -21.2°, -159.75°
     import math
     lat, lon = -21.2, -159.75
-    
-    # Convert lat/lon to tile coordinates
     lat_rad = math.radians(lat)
     n = 2.0 ** zoom
     x = int((lon + 180.0) / 360.0 * n)
     y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
-    
+
     cog_tile_url = f"/cog/cook-islands/{zoom}/{x}/{y}.png?variable={variable}"
     if time:
         cog_tile_url += f"&time={time}"
-        
+
     wms_params = {
         "service": "WMS",
-        "version": "1.3.0", 
+        "version": "1.3.0",
         "request": "GetMap",
         "layers": variable,
         "styles": "boxfill/rainbow",
         "crs": "EPSG:4326",
-        "bbox": "-159.9,-21.3,-159.6,-21.1",  # Rarotonga bounds
+        "bbox": "-159.9,-21.3,-159.6,-21.1",
         "width": "256",
         "height": "256",
         "format": "image/png",
         "transparent": "true"
     }
-    
     if time:
         wms_params["time"] = time
-        
     wms_tile_url = wms_url + "?" + urlencode(wms_params)
-    
+
     return {
         "comparison": "Cook Islands COG vs WMS",
         "dataset": "Rarotonga_inundation_depth.nc",
@@ -827,20 +887,15 @@ def cook_islands_wms_comparison(
         "cog_tile_url": cog_tile_url,
         "wms_tile_url": wms_tile_url,
         "wms_params": wms_params,
-        "bounds": {
-            "lat_min": -21.3,
-            "lat_max": -21.1, 
-            "lon_min": -159.9,
-            "lon_max": -159.6
-        }
+        "bounds": {"lat_min": -21.3, "lat_max": -21.1, "lon_min": -159.9, "lon_max": -159.6}
     }
 
-
-# ---------- Forecast Application Endpoints ----------
-
+# -----------------------------------------------------------------------------
+# Forecast Application Endpoints
+# -----------------------------------------------------------------------------
 @router.get("/forecast/metadata")
 def get_forecast_metadata():
-    """Get metadata for the forecast application"""
+    """Get metadata for the forecast application."""
     return JSONResponse({
         "application": {
             "name": "Cook Islands Wave Forecast",
@@ -856,61 +911,38 @@ def get_forecast_metadata():
         "coverage": {
             "region": "Cook Islands",
             "center": [-21.2367, -159.7777],
-            "bounds": {
-                "lat_min": -21.4,
-                "lat_max": -21.1, 
-                "lon_min": -159.9,
-                "lon_max": -159.6
-            }
+            "bounds": {"lat_min": -21.4, "lat_max": -21.1, "lon_min": -159.9, "lon_max": -159.6}
         },
         "variables": {
             "hs": {
-                "name": "Significant Wave Height",
-                "units": "meters",
+                "name": "Significant Wave Height", "units": "meters",
                 "description": "Height of waves as measured from trough to crest",
-                "range": [0, 8],
-                "colormap": "plasma",
-                "source": "ugrid"
+                "range": [0, 8], "colormap": "plasma", "source": "ugrid"
             },
             "tpeak": {
-                "name": "Peak Wave Period",
-                "units": "seconds", 
+                "name": "Peak Wave Period", "units": "seconds",
                 "description": "Time interval between successive wave crests",
-                "range": [0, 20],
-                "colormap": "viridis",
-                "source": "ugrid"
+                "range": [0, 20], "colormap": "viridis", "source": "ugrid"
             },
             "dirp": {
-                "name": "Peak Wave Direction",
-                "units": "degrees",
+                "name": "Peak Wave Direction", "units": "degrees",
                 "description": "Direction waves are coming from (meteorological convention)",
-                "range": [0, 360],
-                "colormap": "hsv",
-                "source": "ugrid"
+                "range": [0, 360], "colormap": "hsv", "source": "ugrid"
             },
             "u10": {
-                "name": "Wind U Component",
-                "units": "m/s",
+                "name": "Wind U Component", "units": "m/s",
                 "description": "Eastward wind speed at 10m above surface",
-                "range": [-25, 25],
-                "colormap": "RdBu_r", 
-                "source": "ugrid"
+                "range": [-25, 25], "colormap": "RdBu_r", "source": "ugrid"
             },
             "v10": {
-                "name": "Wind V Component",
-                "units": "m/s",
-                "description": "Northward wind speed at 10m above surface", 
-                "range": [-25, 25],
-                "colormap": "RdBu_r",
-                "source": "ugrid"
+                "name": "Wind V Component", "units": "m/s",
+                "description": "Northward wind speed at 10m above surface",
+                "range": [-25, 25], "colormap": "RdBu_r", "source": "ugrid"
             },
             "Band1": {
-                "name": "Inundation Depth",
-                "units": "meters",
+                "name": "Inundation Depth", "units": "meters",
                 "description": "Coastal flooding depth above mean sea level",
-                "range": [0, 5],
-                "colormap": "Blues",
-                "source": "gridded"
+                "range": [0, 5], "colormap": "Blues", "source": "gridded"
             }
         },
         "temporal": {
@@ -922,39 +954,27 @@ def get_forecast_metadata():
         "last_updated": datetime.utcnow().isoformat() + "Z"
     })
 
-
 @router.get("/forecast/status")
 def get_forecast_status():
-    """Get current forecast system status"""
-    
-    # Test data source availability
+    """Get current forecast system status."""
     datasets = {
         "inundation": "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc",
         "ugrid": "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
     }
-    
     status = {
         "system": "operational",
         "last_check": datetime.utcnow().isoformat() + "Z",
         "data_sources": {},
-        "services": {
-            "cog_server": "running",
-            "tile_generation": "operational",
-            "data_access": "operational"
-        }
+        "services": {"cog_server": "running", "tile_generation": "operational", "data_access": "operational"}
     }
-    
+
     for name, url in datasets.items():
         try:
-            # Quick test of data accessibility
             with xr.open_dataset(url) as ds:
-                if name == "inundation":
-                    time_dim = None
-                    variables = list(ds.data_vars.keys())
-                else:
-                    time_dim = len(ds.time) if 'time' in ds.dims else None
-                    variables = list(ds.data_vars.keys())
-                
+                time_dim = None
+                if name != "inundation" and 'time' in ds.dims:
+                    time_dim = len(ds.time)
+                variables = list(ds.data_vars.keys())
                 status["data_sources"][name] = {
                     "status": "available",
                     "url": url,
@@ -969,41 +989,30 @@ def get_forecast_status():
                 "error": str(e),
                 "last_accessed": datetime.utcnow().isoformat() + "Z"
             }
-    
-    # Overall system status
-    all_sources_ok = all(
-        source["status"] == "available" 
-        for source in status["data_sources"].values()
-    )
-    
-    status["system"] = "operational" if all_sources_ok else "degraded"
-    
-    return JSONResponse(status)
 
+    all_sources_ok = all(source["status"] == "available" for source in status["data_sources"].values())
+    status["system"] = "operational" if all_sources_ok else "degraded"
+    return JSONResponse(status)
 
 @router.get("/forecast/current/{variable}")
 def get_current_forecast_value(variable: str, lat: float = -21.2367, lon: float = -159.7777, time_index: int = 0):
-    """Get current forecast value for a specific location and variable"""
-    
+    """Get current forecast value for a specific location and variable (simplified nearest logic)."""
     try:
         if variable == "Band1":
             url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
             with xr.open_dataset(url) as ds:
-                # Find nearest grid point (simplified)
                 value = float(ds[variable].isel(x=1000, y=1000).values)
         else:
-            url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc" 
+            url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
             with xr.open_dataset(url) as ds:
-                # Get value at specific time and location (simplified)
                 if 'time' in ds.dims and time_index < len(ds.time):
                     value = float(ds[variable].isel(time=time_index, mesh_node=500).values)
                 else:
                     value = float(ds[variable].isel(mesh_node=500).values)
-        
-        # Handle NaN values
+
         if np.isnan(value):
             value = None
-            
+
         return JSONResponse({
             "variable": variable,
             "value": value,
@@ -1012,8 +1021,8 @@ def get_current_forecast_value(variable: str, lat: float = -21.2367, lon: float 
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "status": "success"
         })
-        
     except Exception as e:
+        logger.exception("get_current_forecast_value error")
         return JSONResponse({
             "variable": variable,
             "value": None,
@@ -1023,150 +1032,116 @@ def get_current_forecast_value(variable: str, lat: float = -21.2367, lon: float 
             "status": "error"
         }, status_code=500)
 
-
 @router.get("/cook-islands-viewer", response_class=HTMLResponse)
 def cook_islands_viewer():
-    """Serve the Cook Islands tile viewer interface"""
+    """Serve the Cook Islands tile viewer interface."""
+    html_path = Path("cook_islands_viewer.html")
+    if not html_path.exists():
+        logger.error("cook_islands_viewer.html not found")
+        return HTMLResponse(content="<h1>Cook Islands Viewer not found</h1>", status_code=404)
     try:
-        with open("cook_islands_viewer.html", "r") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>Cook Islands Viewer not found</h1>")
-
+        return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+    except Exception:
+        logger.exception("Failed to read cook_islands_viewer.html")
+        return HTMLResponse(content="<h1>Error loading Cook Islands Viewer</h1>", status_code=500)
 
 @router.get("/forecast-app", response_class=HTMLResponse)
 def forecast_app():
-    """Serve the forecast application"""
+    """Serve the forecast application."""
+    html_path = Path("forecast_app.html")
+    if not html_path.exists():
+        logger.error("forecast_app.html not found")
+        return HTMLResponse("<h1>Forecast App not found</h1>", status_code=404)
     try:
-        with open("forecast_app.html", "r") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>Forecast Application not found</h1>")
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    except Exception:
+        logger.exception("Failed to read forecast_app.html")
+        return HTMLResponse("<h1>Error loading Forecast App</h1>", status_code=500)
 
 @router.get("/ugrid-comparison", response_class=HTMLResponse)
 def ugrid_comparison_app():
-    """Serve the UGRID approach comparison application"""
+    """Serve the UGRID approach comparison application."""
+    html_path = Path("ugrid_comparison_app.html")
+    if not html_path.exists():
+        logger.error("ugrid_comparison_app.html not found")
+        return HTMLResponse("<h1>UGRID Comparison Application not found</h1>", status_code=404)
     try:
-        with open("ugrid_comparison_app.html", "r") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>UGRID Comparison Application not found</h1>")
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    except Exception:
+        logger.exception("Failed to read ugrid_comparison_app.html")
+        return HTMLResponse("<h1>Error loading UGRID Comparison Application</h1>", status_code=500)
 
 @router.get("/index", response_class=HTMLResponse)
 def index_page():
-    """Serve a simple index page with links to all applications"""
+    """Serve a simple index page with links to all applications."""
     html_content = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>🌊 Cook Islands Wave Forecast Applications</title>
         <style>
             body {
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                margin: 0;
-                padding: 40px;
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+                color: white; margin: 0; padding: 40px; min-height: 100vh;
+                display: flex; align-items: center; justify-content: center;
             }
             .container {
                 background: rgba(0, 0, 0, 0.8);
-                padding: 40px;
-                border-radius: 20px;
+                padding: 40px; border-radius: 20px;
                 box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-                text-align: center;
-                max-width: 600px;
+                text-align: center; max-width: 600px;
             }
-            h1 {
-                color: #00ff87;
-                margin-bottom: 30px;
-                font-size: 2.5em;
-            }
-            .app-links {
-                display: grid;
-                gap: 20px;
-                margin: 30px 0;
-            }
+            h1 { color: #00ff87; margin-bottom: 30px; font-size: 2.5em; }
+            .app-links { display: grid; gap: 20px; margin: 30px 0; }
             .app-link {
                 background: rgba(0, 255, 135, 0.1);
                 border: 2px solid #00ff87;
-                padding: 20px;
-                border-radius: 10px;
-                text-decoration: none;
-                color: white;
-                transition: all 0.3s ease;
-                display: block;
+                padding: 20px; border-radius: 10px; text-decoration: none; color: white;
+                transition: all 0.3s ease; display: block;
             }
             .app-link:hover {
                 background: rgba(0, 255, 135, 0.2);
                 transform: translateY(-5px);
                 box-shadow: 0 5px 15px rgba(0, 255, 135, 0.3);
             }
-            .app-title {
-                font-size: 1.3em;
-                font-weight: bold;
-                margin-bottom: 10px;
-                color: #00ff87;
-            }
-            .app-desc {
-                font-size: 0.9em;
-                opacity: 0.8;
-            }
+            .app-title { font-size: 1.3em; font-weight: bold; margin-bottom: 10px; color: #00ff87; }
+            .app-desc { font-size: 0.9em; opacity: 0.8; }
             .new-badge {
-                background: #ff6b6b;
-                color: white;
-                padding: 4px 8px;
-                border-radius: 15px;
-                font-size: 0.7em;
-                margin-left: 10px;
+                background: #ff6b6b; color: white; padding: 4px 8px;
+                border-radius: 15px; font-size: 0.7em; margin-left: 10px;
             }
-            .footer {
-                margin-top: 30px;
-                font-size: 0.8em;
-                opacity: 0.7;
-            }
+            .footer { margin-top: 30px; font-size: 0.8em; opacity: 0.7; }
         </style>
     </head>
     <body>
         <div class="container">
             <h1>🌊 Cook Islands Wave Forecast</h1>
             <p>Advanced UGRID oceanographic visualization applications</p>
-            
             <div class="app-links">
                 <a href="/cog/forecast-app" class="app-link">
                     <div class="app-title">🌊 Original Forecast Application</div>
                     <div class="app-desc">
-                        Full-featured wave forecast with multiple variables, 
+                        Full-featured wave forecast with multiple variables,
                         time controls, and interactive mapping
                     </div>
                 </a>
-                
                 <a href="/cog/ugrid-comparison" class="app-link">
-                    <div class="app-title">
-                        📐 UGRID Approach Comparison 
-                        <span class="new-badge">NEW</span>
-                    </div>
+                    <div class="app-title">📐 UGRID Approach Comparison <span class="new-badge">NEW</span></div>
                     <div class="app-desc">
                         Compare Direct Triangular Mesh vs Interpolated approaches.
                         See the difference in island boundary preservation!
                     </div>
                 </a>
-                
                 <a href="/cog/docs" class="app-link">
                     <div class="app-title">📚 API Documentation</div>
-                    <div class="app-desc">
-                        Complete API reference with interactive testing interface
-                    </div>
+                    <div class="app-desc">Complete API reference with interactive testing interface</div>
                 </a>
             </div>
-            
             <div class="footer">
-                <p>🔬 <strong>Scientific Innovation:</strong> Direct triangular mesh rendering preserves 
+                <p>🔬 <strong>Scientific Innovation:</strong> Direct triangular mesh rendering preserves
                 original UGRID structure and eliminates interpolation artifacts around islands.</p>
                 <p>Data Source: Pacific Community (SPC) THREDDS Server</p>
             </div>
@@ -1176,4 +1151,5 @@ def index_page():
     """
     return HTMLResponse(content=html_content)
 
+# Mount router last
 app.include_router(router)
