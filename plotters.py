@@ -47,7 +47,7 @@ def draw_plot(
     plot = (plot or "contourf").lower()
 
     if plot == "contourf":
-        kw = {"extend": "both", "antialiased": False}
+        kw = {"extend": "both", "antialiased": True}
         kw.update(options or {})
         return ax.contourf(lons, lats, data, levels=levels, cmap=cmap, **kw)
 
@@ -182,6 +182,6 @@ def draw_plot(
         return ax.pcolormesh(lons, lats, seg_idx_ma, cmap=cmap_obj, norm=norm, **kw)
 
     # Fallback to contourf if unknown
-    kw = {"extend": "both", "antialiased": False}
+    kw = {"extend": "both", "antialiased": True}
     kw.update(options or {})
     return ax.contourf(lons, lats, data, levels=levels, cmap=cmap, **kw)

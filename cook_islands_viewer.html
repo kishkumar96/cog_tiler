@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cook Islands COG Tiler - Live Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f8ff;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e40af, #0891b2);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .tile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .tile-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .tile-image {
+            width: 256px;
+            height: 256px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            image-rendering: pixelated;
+            margin: 10px auto;
+            display: block;
+        }
+        .tile-info {
+            margin-top: 15px;
+        }
+        .tile-title {
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 5px;
+        }
+        .tile-url {
+            font-family: monospace;
+            font-size: 12px;
+            background: #f5f5f5;
+            padding: 5px;
+            border-radius: 3px;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .control-group label {
+            font-weight: bold;
+            min-width: 80px;
+        }
+        .control-group input, .control-group select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .update-btn {
+            background: #0891b2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .update-btn:hover {
+            background: #0e7490;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background: #ecfdf5;
+            border-left: 4px solid #10b981;
+        }
+        .error {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏝️ Cook Islands COG Tiler</h1>
+            <p>Live visualization of Rarotonga inundation and UGRID datasets</p>
+        </div>
+
+        <div class="controls">
+            <h3>Tile Parameters</h3>
+            <div class="control-group">
+                <label>Zoom:</label>
+                <input type="number" id="zoom" value="10" min="1" max="18">
+                <label>X:</label>
+                <input type="number" id="tileX" value="57">
+                <label>Y:</label>
+                <input type="number" id="tileY" value="573">
+            </div>
+            <div class="control-group">
+                <label>Colormap:</label>
+                <select id="colormap">
+                    <option value="viridis">viridis</option>
+                    <option value="RdYlBu_r">RdYlBu_r</option>
+                    <option value="plasma">plasma</option>
+                    <option value="turbo">turbo</option>
+                    <option value="coolwarm">coolwarm</option>
+                </select>
+                <label>Min:</label>
+                <input type="number" id="vmin" value="0" step="0.1">
+                <label>Max:</label>
+                <input type="number" id="vmax" value="5" step="0.1">
+            </div>
+            <div class="control-group">
+                <button class="update-btn" onclick="updateTiles()">Update Tiles</button>
+                <label>
+                    <input type="checkbox" id="useLocal" checked> Use Local Test Data
+                </label>
+            </div>
+        </div>
+
+        <div class="tile-grid" id="tileGrid">
+            <!-- Tiles will be populated by JavaScript -->
+        </div>
+
+        <div class="status" id="status">
+            <strong>Status:</strong> <span id="statusText">Ready to load tiles</span>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:8001/cog';
+        
+        const tileTypes = [
+            {
+                name: 'Cook Islands Inundation',
+                endpoint: 'cook-islands',
+                description: 'Sea level inundation depth for Rarotonga',
+                variable: 'inundation_depth'
+            },
+            {
+                name: 'Cook Islands UGRID',
+                endpoint: 'cook-islands-ugrid', 
+                description: 'Unstructured grid model data',
+                variable: 'water_level'
+            }
+        ];
+
+        function buildTileUrl(endpoint, variable) {
+            const zoom = document.getElementById('zoom').value;
+            const x = document.getElementById('tileX').value;
+            const y = document.getElementById('tileY').value;
+            const colormap = document.getElementById('colormap').value;
+            const vmin = document.getElementById('vmin').value;
+            const vmax = document.getElementById('vmax').value;
+            const useLocal = document.getElementById('useLocal').checked;
+            
+            return `${baseUrl}/${endpoint}/${zoom}/${x}/${y}.png?variable=${variable}&colormap=${colormap}&vmin=${vmin}&vmax=${vmax}&use_local=${useLocal}`;
+        }
+
+        function updateTiles() {
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = 'Loading tiles...';
+            
+            const tileGrid = document.getElementById('tileGrid');
+            tileGrid.innerHTML = '';
+            
+            tileTypes.forEach(tileType => {
+                const tileUrl = buildTileUrl(tileType.endpoint, tileType.variable);
+                
+                const tileCard = document.createElement('div');
+                tileCard.className = 'tile-card';
+                tileCard.innerHTML = `
+                    <div class="tile-title">${tileType.name}</div>
+                    <img class="tile-image" src="${tileUrl}" 
+                         alt="${tileType.description}"
+                         onload="onTileLoad(this)"
+                         onerror="onTileError(this)">
+                    <div class="tile-info">
+                        <div>${tileType.description}</div>
+                        <div><strong>Variable:</strong> ${tileType.variable}</div>
+                        <div class="tile-url">${tileUrl}</div>
+                    </div>
+                `;
+                
+                tileGrid.appendChild(tileCard);
+            });
+        }
+
+        function onTileLoad(img) {
+            console.log('Tile loaded successfully:', img.src);
+        }
+
+        function onTileError(img) {
+            img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjEyOCIgeT0iMTI4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCI+VGlsZSBMb2FkIEVycm9yPC90ZXh0Pjwvc3ZnPg==';
+            console.error('Failed to load tile:', img.src);
+        }
+
+        // Load tiles on page load and when server info is available
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check server connectivity first
+            fetch(`${baseUrl}/`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('statusText').textContent = `Server online: ${data.Message}`;
+                    updateTiles();
+                })
+                .catch(error => {
+                    document.getElementById('statusText').textContent = `Server offline: ${error.message}`;
+                    document.getElementById('status').className = 'status error';
+                });
+        });
+    </script>
+</body>
+</html>

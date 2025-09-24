@@ -17,6 +17,7 @@ import rasterio
 from rasterio.transform import from_bounds
 from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
 from fastapi import FastAPI, Response, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from rio_tiler.io import Reader
 from PIL import Image
@@ -58,10 +59,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CACHE_DIR = Path(os.environ.get("CACHE_DIR", "/app/cache"))
+# Use local cache directory for development, Docker path for production
+CACHE_DIR = Path(os.environ.get("CACHE_DIR", "cache"))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
-#CACHE_DIR = Path("cache")
-#CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------- Models ----------
 
@@ -387,18 +387,150 @@ def ensure_cog_from_params(
 
 # ---------- Routes ----------
 
-DEFAULT_URL = "https://ocean-thredds01.spc.int/thredds/dodsC/POP/model/regional/noaa/nrt/daily/sst_anomalies/oisst-avhrr-v02r01.20250815_preliminary.nc"
-DEFAULT_VAR = "anom"
+DEFAULT_URL = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+DEFAULT_VAR = "hs"
 DEFAULT_PARAMS = dict(
     layer_id="4",
-    url=DEFAULT_URL, variable=DEFAULT_VAR, time=None,
-    colormap="RdBu_r", vmin=-2.0, vmax=2.0, step=0.5,
-    lon_min=100.0, lon_max=300.0, lat_min=-45.0, lat_max=45.0,
+    url=DEFAULT_URL, variable=DEFAULT_VAR, time="2025-09-24T00:00:00",
+    colormap="viridis", vmin=0.0, vmax=4.0, step=0.5,
+    lon_min=-162.0, lon_max=-158.0, lat_min=-22.0, lat_max=-19.0,
     plot="contourf", plot_options=None,
 )
 
 # Lazy default COG: don't fetch at import time
 DEFAULT_COG: Optional[Path] = None
+
+@router.get("/cook-islands/{z}/{x}/{y}.png")
+def cook_islands_tiles(
+    z: int, x: int, y: int,
+    variable: str = Query("inundation_depth", description="Variable to plot"),
+    time: Optional[str] = Query(None, description="Time slice (ISO format)"),
+    colormap: str = Query("viridis", description="Matplotlib colormap"),
+    vmin: float = Query(0.0, description="Min value for colormap"),
+    vmax: float = Query(5.0, description="Max value for colormap"),
+    use_local: bool = Query(True, description="Use local test data (fallback for network issues)"),
+):
+    """
+    Cook Islands specific tile endpoint with defaults for Rarotonga inundation data
+    """
+    # Cook Islands defaults - use local test data if network issues
+    if use_local:
+        cook_islands_url = "/home/kishank/ocean_subsites/New COG/cog_tiler/cook_islands_test_data.nc"
+    else:
+        cook_islands_url = "http://gemthredsshpc.spc.int/thredds/dodsC/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
+    
+    # Rarotonga bounds (approximate)
+    rarotonga_bounds = {
+        "lon_min": -159.9,
+        "lon_max": -159.6, 
+        "lat_min": -21.3,
+        "lat_max": -21.1
+    }
+    
+    try:
+        cog_path = ensure_cog_from_params(
+            layer_id="cook_islands_rarotonga",
+            url=cook_islands_url,
+            variable=variable,
+            time=time,
+            colormap=colormap,
+            vmin=vmin,
+            vmax=vmax,
+            step=0.1,
+            **rarotonga_bounds,
+            plot="contourf",
+            plot_options={"antialiased": True, "alpha": 0.8}
+        )
+        
+        with Reader(str(cog_path)) as reader:
+            try:
+                tile_data, mask = reader.tile(x, y, z)
+                tile_data = tile_data.astype(np.uint8)
+                mask = mask.astype(np.uint8)
+                arr = np.transpose(tile_data, (1, 2, 0))
+                if arr.shape[2] == 4:
+                    rgba = arr.copy()
+                    rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
+                else:
+                    rgba = np.dstack([arr, mask])
+                img = Image.fromarray(rgba, "RGBA")
+            except Exception as e:
+                logger.error(f"Tile generation error: {e}")
+                img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+                
+    except Exception as e:
+        logger.error(f"COG generation failed for Cook Islands: {e}")
+        # Return transparent tile on error
+        img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    
+    return _png_response(img)
+
+@router.get("/cook-islands-ugrid/{z}/{x}/{y}.png")
+def cook_islands_ugrid_tiles(
+    z: int, x: int, y: int,
+    variable: str = Query("water_level", description="UGRID variable to plot"),
+    time: Optional[str] = Query(None, description="Time slice (ISO format)"),
+    colormap: str = Query("RdYlBu_r", description="Matplotlib colormap"),
+    vmin: float = Query(-2.0, description="Min value for colormap"),
+    vmax: float = Query(3.0, description="Max value for colormap"),
+    use_local: bool = Query(True, description="Use local test data (fallback for network issues)"),
+):
+    """
+    Cook Islands UGRID specific tile endpoint for unstructured grid data
+    """
+    # UGRID defaults - use local test data if network issues
+    if use_local:
+        # For now, fallback to regular gridded test data
+        ugrid_url = "file:///home/kishank/ocean_subsites/New COG/cog_tiler/cook_islands_test_data.nc"
+        variable = "inundation_depth"  # Map to available variable in test data
+    else:
+        ugrid_url = "http://gemthredsshpc.spc.int/thredds/dodsC/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+    
+    # Rarotonga bounds (slightly expanded for UGRID)
+    rarotonga_bounds = {
+        "lon_min": -159.95,
+        "lon_max": -159.55, 
+        "lat_min": -21.35,
+        "lat_max": -21.05
+    }
+    
+    try:
+        cog_path = ensure_cog_from_params(
+            layer_id="cook_islands_ugrid",
+            url=ugrid_url,
+            variable=variable,
+            time=time,
+            colormap=colormap,
+            vmin=vmin,
+            vmax=vmax,
+            step=0.1,
+            **rarotonga_bounds,
+            plot="contourf",
+            plot_options={"antialiased": True, "alpha": 0.9}
+        )
+        
+        with Reader(str(cog_path)) as reader:
+            try:
+                tile_data, mask = reader.tile(x, y, z)
+                tile_data = tile_data.astype(np.uint8)
+                mask = mask.astype(np.uint8)
+                arr = np.transpose(tile_data, (1, 2, 0))
+                if arr.shape[2] == 4:
+                    rgba = arr.copy()
+                    rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
+                else:
+                    rgba = np.dstack([arr, mask])
+                img = Image.fromarray(rgba, "RGBA")
+            except Exception as e:
+                logger.error(f"UGRID tile generation error: {e}")
+                img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+                
+    except Exception as e:
+        logger.error(f"UGRID COG generation failed: {e}")
+        # Return transparent tile on error
+        img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    
+    return _png_response(img)
 
 @router.get("/tiles/{z}/{x}/{y}.png")
 def tiles_static(z: int, x: int, y: int):
@@ -536,5 +668,77 @@ def cog_generate(payload: CogGenerateRequest):
         tile_querystring=urlencode(tile_params),
     )
 
+@router.get("/cook-islands/wms-comparison")
+def cook_islands_wms_comparison(
+    variable: str = Query("inundation_depth", description="Variable to compare"),
+    time: Optional[str] = Query(None, description="Time slice"),
+    zoom: int = Query(10, description="Zoom level for comparison"),
+):
+    """
+    Compare Cook Islands COG tiles with the original WMS service
+    """
+    wms_url = "http://gemthredsshpc.spc.int/thredds/wms/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
+    
+    # Center tile for Rarotonga at given zoom level
+    # Approximate center: -21.2°, -159.75°
+    import math
+    lat, lon = -21.2, -159.75
+    
+    # Convert lat/lon to tile coordinates
+    lat_rad = math.radians(lat)
+    n = 2.0 ** zoom
+    x = int((lon + 180.0) / 360.0 * n)
+    y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+    
+    cog_tile_url = f"/cog/cook-islands/{zoom}/{x}/{y}.png?variable={variable}"
+    if time:
+        cog_tile_url += f"&time={time}"
+        
+    wms_params = {
+        "service": "WMS",
+        "version": "1.3.0", 
+        "request": "GetMap",
+        "layers": variable,
+        "styles": "boxfill/rainbow",
+        "crs": "EPSG:4326",
+        "bbox": "-159.9,-21.3,-159.6,-21.1",  # Rarotonga bounds
+        "width": "256",
+        "height": "256",
+        "format": "image/png",
+        "transparent": "true"
+    }
+    
+    if time:
+        wms_params["time"] = time
+        
+    wms_tile_url = wms_url + "?" + urlencode(wms_params)
+    
+    return {
+        "comparison": "Cook Islands COG vs WMS",
+        "dataset": "Rarotonga_inundation_depth.nc",
+        "variable": variable,
+        "time": time,
+        "zoom_level": zoom,
+        "center_tile": {"x": x, "y": y, "z": zoom},
+        "cog_tile_url": cog_tile_url,
+        "wms_tile_url": wms_tile_url,
+        "wms_params": wms_params,
+        "bounds": {
+            "lat_min": -21.3,
+            "lat_max": -21.1, 
+            "lon_min": -159.9,
+            "lon_max": -159.6
+        }
+    }
+
+
+@router.get("/cook-islands-viewer", response_class=HTMLResponse)
+def cook_islands_viewer():
+    """Serve the Cook Islands tile viewer interface"""
+    try:
+        with open("cook_islands_viewer.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Cook Islands Viewer not found</h1>")
 
 app.include_router(router)

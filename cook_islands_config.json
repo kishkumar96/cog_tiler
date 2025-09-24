@@ -1,0 +1,78 @@
+{
+  "datasets": {
+    "rarotonga_inundation": {
+      "name": "Rarotonga Inundation Depth",
+      "url": "http://gemthredsshpc.spc.int/thredds/dodsC/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc",
+      "wms_url": "http://gemthredsshpc.spc.int/thredds/wms/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc",
+      "variables": {
+        "inundation_depth": {
+          "long_name": "Sea Level Inundation Depth",
+          "units": "meters",
+          "colormap": "viridis",
+          "levels": [0, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0],
+          "description": "Predicted sea level inundation depth for Rarotonga"
+        }
+      },
+      "bounds": {
+        "lat_min": -21.3,
+        "lat_max": -21.1,
+        "lon_min": -159.9,
+        "lon_max": -159.6
+      },
+      "time_variable": "time",
+      "projection": "EPSG:4326"
+    },
+    "rarotonga_ugrid": {
+      "name": "Rarotonga UGRID Model",
+      "url": "http://gemthredsshpc.spc.int/thredds/dodsC/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc",
+      "wms_url": "http://gemthredsshpc.spc.int/thredds/wms/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc",
+      "format": "UGRID",
+      "description": "Unstructured grid model data for Rarotonga - high resolution coastal modeling",
+      "variables": {
+        "water_level": {
+          "long_name": "Water Level",
+          "units": "meters",
+          "colormap": "RdYlBu_r",
+          "levels": [-2, -1, -0.5, 0, 0.5, 1, 2, 3],
+          "description": "Sea surface height/water level"
+        },
+        "water_velocity": {
+          "long_name": "Water Velocity",
+          "units": "m/s",
+          "colormap": "plasma",
+          "levels": [0, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0],
+          "description": "Water velocity magnitude"
+        },
+        "depth": {
+          "long_name": "Water Depth",
+          "units": "meters",
+          "colormap": "viridis",
+          "levels": [0, 1, 5, 10, 20, 50, 100],
+          "description": "Water depth below surface"
+        }
+      },
+      "bounds": {
+        "lat_min": -21.35,
+        "lat_max": -21.05,
+        "lon_min": -159.95,
+        "lon_max": -159.55
+      },
+      "time_variable": "time",
+      "projection": "EPSG:4326",
+      "mesh_topology": "mesh2d"
+    },
+    "cook_islands_forecast": {
+      "name": "Cook Islands Forecast Data",
+      "base_url": "http://gemthredsshpc.spc.int/thredds/dodsC/POPdata/model/country/spc/forecast/hourly/COK/",
+      "wms_base": "http://gemthredsshpc.spc.int/thredds/wms/POPdata/model/country/spc/forecast/hourly/COK/",
+      "description": "Cook Islands regional forecast datasets from SPC"
+    }
+  },
+  "wms_comparison": {
+    "reference_wms": "http://gemthredsshpc.spc.int/thredds/wms/POPdata/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc",
+    "layers": ["inundation_depth"],
+    "styles": ["boxfill/rainbow"],
+    "format": "image/png",
+    "transparent": true
+  }
+}
