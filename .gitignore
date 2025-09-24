@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+cog_venv/
+venv/
+env/
+ENV/
+
+# COG Tiler Specific
+cache/
+*.tif
+*.tif.lock
+server*.log
+debug*.log
+nohup.out
+
+# Generated tiles and test outputs
+*_tile.png
+*_test.png
+debug_tile*.png
+temp_*.tif
+temp_*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
