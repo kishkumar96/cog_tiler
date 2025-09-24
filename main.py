@@ -50,7 +50,21 @@ router = APIRouter(prefix="/cog")
 
 @router.get("/")
 def read_root():
-    return {"Message": "On-demand OPeNDAP → COG Tile Server (Pluggable Plotting)"}
+    return {
+        "message": "🌊 Cook Islands Wave Forecast API",
+        "applications": {
+            "forecast_app": "/cog/forecast-app",
+            "ugrid_comparison": "/cog/ugrid-comparison",
+            "index": "/cog/index"
+        },
+        "status": "running"
+    }
+
+# Add root redirect outside of router
+@app.get("/")
+def root_redirect():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/cog/index")
 
 # CORS
 app.add_middleware(
@@ -186,6 +200,28 @@ def _parse_plot_options(plot_options: Optional[str]) -> Dict[str, Any]:
         return dict(plot_options)
     except Exception:
         return {}
+
+def _tile_to_bounds(x: int, y: int, z: int) -> dict:
+    """Convert tile coordinates to geographic bounds (Web Mercator to WGS84)"""
+    import math
+    
+    def tile_to_lat_lon(x, y, z):
+        n = 2.0 ** z
+        lon_deg = x / n * 360.0 - 180.0
+        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y / n)))
+        lat_deg = math.degrees(lat_rad)
+        return lat_deg, lon_deg
+    
+    # Get bounds of the tile
+    lat_north, lon_west = tile_to_lat_lon(x, y, z)
+    lat_south, lon_east = tile_to_lat_lon(x + 1, y + 1, z)
+    
+    return {
+        "lon_min": lon_west,
+        "lon_max": lon_east,
+        "lat_min": lat_south,
+        "lat_max": lat_north
+    }
 
 def ensure_cog_from_params(
     *,
@@ -470,69 +506,135 @@ def cook_islands_tiles(
 @router.get("/cook-islands-ugrid/{z}/{x}/{y}.png")
 def cook_islands_ugrid_tiles(
     z: int, x: int, y: int,
-    variable: str = Query("water_level", description="UGRID variable to plot"),
-    time: Optional[str] = Query(None, description="Time slice (ISO format)"),
-    colormap: str = Query("RdYlBu_r", description="Matplotlib colormap"),
-    vmin: float = Query(-2.0, description="Min value for colormap"),
-    vmax: float = Query(3.0, description="Max value for colormap"),
-    use_local: bool = Query(False, description="Use local test data (fallback for network issues)"),
+    variable: str = Query("hs", description="UGRID variable to plot"),
+    time: Optional[str] = Query(None, description="Time slice (ISO format or index)"),
+    colormap: str = Query("jet", description="Matplotlib colormap"),
+    vmin: Optional[float] = Query(None, description="Min value for colormap"),
+    vmax: Optional[float] = Query(None, description="Max value for colormap"),
+    use_direct: bool = Query(True, description="Use direct triangular mesh (recommended)"),
 ):
     """
-    Cook Islands UGRID specific tile endpoint for unstructured grid data
+    Cook Islands UGRID tiles - NOW USES DIRECT TRIANGULAR MESH BY DEFAULT
+    Set use_direct=false for old interpolated approach
     """
-    # UGRID defaults - use real THREDDS data by default
-    if use_local:
-        # For now, fallback to regular gridded test data
-        ugrid_url = "file:///workspaces/cog_tiler/cook_islands_test_data.nc"
-        variable = "inundation_depth"  # Map to available variable in test data
-    else:
+    if use_direct:
+        # Use your superior direct triangular mesh approach
+        from ugrid_direct import create_direct_ugrid_tile
+        
+        bounds = _tile_to_bounds(x, y, z)
         ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+        
+        try:
+            tile_bytes = create_direct_ugrid_tile(
+                url=ugrid_url,
+                variable=variable,
+                time=time,
+                lon_min=bounds["lon_min"],
+                lon_max=bounds["lon_max"],
+                lat_min=bounds["lat_min"],
+                lat_max=bounds["lat_max"],
+                tile_size=256,
+                colormap=colormap,
+                vmin=vmin,
+                vmax=vmax
+            )
+            return Response(content=tile_bytes, media_type="image/png")
+        except Exception as e:
+            logger.error(f"Direct UGRID tile error: {e}")
+            img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+            return _png_response(img)
+    else:
+        # Fall back to old interpolated approach
+        ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+        
+        # Rarotonga bounds (slightly expanded for UGRID)
+        rarotonga_bounds = {
+            "lon_min": -159.95,
+            "lon_max": -159.55, 
+            "lat_min": -21.35,
+            "lat_max": -21.05
+        }
+        
+        try:
+            cog_path = ensure_cog_from_params(
+                layer_id="cook_islands_ugrid",
+                url=ugrid_url,
+                variable=variable,
+                time=time,
+                colormap=colormap,
+                vmin=vmin or -2.0,
+                vmax=vmax or 3.0,
+                step=0.1,
+                **rarotonga_bounds,
+                plot="contourf",
+                plot_options={"antialiased": True, "alpha": 0.9}
+            )
+            
+            with Reader(str(cog_path)) as reader:
+                try:
+                    tile_data, mask = reader.tile(x, y, z)
+                    tile_data = tile_data.astype(np.uint8)
+                    mask = mask.astype(np.uint8)
+                    arr = np.transpose(tile_data, (1, 2, 0))
+                    if arr.shape[2] == 4:
+                        rgba = arr.copy()
+                        rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
+                    else:
+                        rgba = np.dstack([arr, mask])
+                    img = Image.fromarray(rgba, "RGBA")
+                except Exception as e:
+                    logger.error(f"UGRID tile generation error: {e}")
+                    img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+                    
+        except Exception as e:
+            logger.error(f"UGRID COG generation failed: {e}")
+            img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     
-    # Rarotonga bounds (slightly expanded for UGRID)
-    rarotonga_bounds = {
-        "lon_min": -159.95,
-        "lon_max": -159.55, 
-        "lat_min": -21.35,
-        "lat_max": -21.05
-    }
+        return _png_response(img)
+
+@router.get("/cook-islands-ugrid-direct/{z}/{x}/{y}.png")
+def cook_islands_ugrid_direct_tiles(
+    z: int, x: int, y: int,
+    variable: str = Query("hs", description="UGRID variable to plot"),
+    time: Optional[str] = Query(None, description="Time slice (ISO format or index)"),
+    colormap: str = Query("jet", description="Matplotlib colormap"),
+    vmin: Optional[float] = Query(None, description="Min value for colormap"),
+    vmax: Optional[float] = Query(None, description="Max value for colormap"),
+):
+    """
+    Cook Islands UGRID direct triangular mesh tiles - NO INTERPOLATION ARTIFACTS
+    Preserves original mesh structure for clean island boundaries
+    """
+    from ugrid_direct import create_direct_ugrid_tile
+    
+    # Convert tile coordinates to geographic bounds
+    bounds = _tile_to_bounds(x, y, z)
+    
+    ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
     
     try:
-        cog_path = ensure_cog_from_params(
-            layer_id="cook_islands_ugrid",
+        # Generate tile using direct triangular mesh approach
+        tile_bytes = create_direct_ugrid_tile(
             url=ugrid_url,
             variable=variable,
             time=time,
+            lon_min=bounds["lon_min"],
+            lon_max=bounds["lon_max"],
+            lat_min=bounds["lat_min"],
+            lat_max=bounds["lat_max"],
+            tile_size=256,
             colormap=colormap,
             vmin=vmin,
-            vmax=vmax,
-            step=0.1,
-            **rarotonga_bounds,
-            plot="contourf",
-            plot_options={"antialiased": True, "alpha": 0.9}
+            vmax=vmax
         )
         
-        with Reader(str(cog_path)) as reader:
-            try:
-                tile_data, mask = reader.tile(x, y, z)
-                tile_data = tile_data.astype(np.uint8)
-                mask = mask.astype(np.uint8)
-                arr = np.transpose(tile_data, (1, 2, 0))
-                if arr.shape[2] == 4:
-                    rgba = arr.copy()
-                    rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
-                else:
-                    rgba = np.dstack([arr, mask])
-                img = Image.fromarray(rgba, "RGBA")
-            except Exception as e:
-                logger.error(f"UGRID tile generation error: {e}")
-                img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-                
+        return Response(content=tile_bytes, media_type="image/png")
+        
     except Exception as e:
-        logger.error(f"UGRID COG generation failed: {e}")
+        logger.error(f"Direct UGRID tile error: {e}")
         # Return transparent tile on error
         img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    
-    return _png_response(img)
+        return _png_response(img)
 
 @router.get("/tiles/{z}/{x}/{y}.png")
 def tiles_static(z: int, x: int, y: int):
@@ -940,5 +1042,138 @@ def forecast_app():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Forecast Application not found</h1>")
+
+@router.get("/ugrid-comparison", response_class=HTMLResponse)
+def ugrid_comparison_app():
+    """Serve the UGRID approach comparison application"""
+    try:
+        with open("ugrid_comparison_app.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>UGRID Comparison Application not found</h1>")
+
+@router.get("/index", response_class=HTMLResponse)
+def index_page():
+    """Serve a simple index page with links to all applications"""
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🌊 Cook Islands Wave Forecast Applications</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                margin: 0;
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .container {
+                background: rgba(0, 0, 0, 0.8);
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 600px;
+            }
+            h1 {
+                color: #00ff87;
+                margin-bottom: 30px;
+                font-size: 2.5em;
+            }
+            .app-links {
+                display: grid;
+                gap: 20px;
+                margin: 30px 0;
+            }
+            .app-link {
+                background: rgba(0, 255, 135, 0.1);
+                border: 2px solid #00ff87;
+                padding: 20px;
+                border-radius: 10px;
+                text-decoration: none;
+                color: white;
+                transition: all 0.3s ease;
+                display: block;
+            }
+            .app-link:hover {
+                background: rgba(0, 255, 135, 0.2);
+                transform: translateY(-5px);
+                box-shadow: 0 5px 15px rgba(0, 255, 135, 0.3);
+            }
+            .app-title {
+                font-size: 1.3em;
+                font-weight: bold;
+                margin-bottom: 10px;
+                color: #00ff87;
+            }
+            .app-desc {
+                font-size: 0.9em;
+                opacity: 0.8;
+            }
+            .new-badge {
+                background: #ff6b6b;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 15px;
+                font-size: 0.7em;
+                margin-left: 10px;
+            }
+            .footer {
+                margin-top: 30px;
+                font-size: 0.8em;
+                opacity: 0.7;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🌊 Cook Islands Wave Forecast</h1>
+            <p>Advanced UGRID oceanographic visualization applications</p>
+            
+            <div class="app-links">
+                <a href="/cog/forecast-app" class="app-link">
+                    <div class="app-title">🌊 Original Forecast Application</div>
+                    <div class="app-desc">
+                        Full-featured wave forecast with multiple variables, 
+                        time controls, and interactive mapping
+                    </div>
+                </a>
+                
+                <a href="/cog/ugrid-comparison" class="app-link">
+                    <div class="app-title">
+                        📐 UGRID Approach Comparison 
+                        <span class="new-badge">NEW</span>
+                    </div>
+                    <div class="app-desc">
+                        Compare Direct Triangular Mesh vs Interpolated approaches.
+                        See the difference in island boundary preservation!
+                    </div>
+                </a>
+                
+                <a href="/cog/docs" class="app-link">
+                    <div class="app-title">📚 API Documentation</div>
+                    <div class="app-desc">
+                        Complete API reference with interactive testing interface
+                    </div>
+                </a>
+            </div>
+            
+            <div class="footer">
+                <p>🔬 <strong>Scientific Innovation:</strong> Direct triangular mesh rendering preserves 
+                original UGRID structure and eliminates interpolation artifacts around islands.</p>
+                <p>Data Source: Pacific Community (SPC) THREDDS Server</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 app.include_router(router)

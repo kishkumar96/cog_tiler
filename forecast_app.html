@@ -566,7 +566,7 @@
             const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8000';
             
             if (currentSource === 'ugrid') {
-                endpoint = `${baseUrl}/cog/cook-islands-ugrid/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
+                endpoint = `${baseUrl}/cog/cook-islands-ugrid-direct/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
             } else {
                 endpoint = `${baseUrl}/cog/cook-islands/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
             }

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌊 Cook Islands Wave Forecast - UGRID Comparison</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #00ff87;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #00ff87;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid #00ff87;
+        }
+        
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            color: #00ff87;
+            font-size: 16px;
+        }
+        
+        .approach-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .approach-btn {
+            padding: 12px;
+            border: 2px solid #00ff87;
+            background: rgba(0, 255, 135, 0.1);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .approach-btn:hover {
+            background: rgba(0, 255, 135, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .approach-btn.active {
+            background: #00ff87;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .variable-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .var-btn {
+            padding: 10px;
+            border: 1px solid #555;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+        
+        .var-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .var-btn.active {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+            color: white;
+        }
+        
+        .slider-container {
+            margin: 10px 0;
+        }
+        
+        .slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .info-panel {
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .comparison-note {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid #ffa500;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌊 Cook Islands Wave Forecast - UGRID Approach Comparison</h1>
+        <p>Compare Direct Triangular Mesh vs Interpolated Grid Approaches</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <div class="comparison-note">
+                <strong>🔬 SCIENTIFIC COMPARISON</strong><br>
+                <strong>Direct Mesh:</strong> Preserves original UGRID structure, clean island boundaries<br>
+                <strong>Interpolated:</strong> Regular grid, may blur coastlines
+            </div>
+            
+            <div class="control-group">
+                <h3>🎯 Rendering Method</h3>
+                <div class="approach-selector">
+                    <div class="approach-btn active" data-approach="direct">
+                        📐 Direct Mesh<br>
+                        <small>(No Interpolation)</small>
+                    </div>
+                    <div class="approach-btn" data-approach="interpolated">
+                        🗂️ Interpolated<br>
+                        <small>(Current App)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>📊 Wave Variables</h3>
+                <div class="variable-grid">
+                    <div class="var-btn active" data-var="hs">Wave Height</div>
+                    <div class="var-btn" data-var="tpeak">Wave Period</div>
+                    <div class="var-btn" data-var="dirp">Wave Direction</div>
+                    <div class="var-btn" data-var="u10">Wind U</div>
+                    <div class="var-btn" data-var="v10">Wind V</div>
+                    <div class="var-btn" data-var="tm02">Mean Period</div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>⏰ Forecast Time</h3>
+                <div class="slider-container">
+                    <label>Forecast Hour: <span id="time-display">+0 hours</span></label>
+                    <input type="range" id="timeSlider" class="slider" min="0" max="48" value="0" step="1">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>🎨 Visualization</h3>
+                <div class="slider-container">
+                    <label>Opacity: <span id="opacity-display">80%</span></label>
+                    <input type="range" id="opacitySlider" class="slider" min="0" max="100" value="80" step="5">
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>Colormap:</label>
+                    <select id="colormapSelect" style="width: 100%; margin-top: 5px; padding: 5px;">
+                        <option value="jet" selected>Jet</option>
+                        <option value="plasma">Plasma</option>
+                        <option value="viridis">Viridis</option>
+                        <option value="RdYlBu_r">RdYlBu_r</option>
+                        <option value="coolwarm">Coolwarm</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <strong>🌊 Current Display:</strong><br>
+                <span id="current-info">Direct Mesh - Wave Height - +0 hours</span>
+                <br><br>
+                <strong>📍 Cook Islands Region</strong><br>
+                Real-time UGRID wave forecast data from Pacific Community (SPC)
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="loading" id="loading">
+                <div>🌊 Loading wave data...</div>
+            </div>
+            <div class="legend">
+                <strong>Wave Height Scale</strong><br>
+                <div style="background: linear-gradient(to right, blue, cyan, yellow, red); height: 15px; width: 150px; margin: 5px 0;"></div>
+                <div style="display: flex; justify-content: space-between; font-size: 10px;">
+                    <span>0m</span><span>2m</span><span>4m+</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([-21.2, -159.7], 9);
+        
+        // Add base map
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // State
+        let currentOverlay = null;
+        let currentApproach = 'direct';
+        let currentVariable = 'hs';
+        let currentTime = 0;
+        
+        const baseUrl = 'http://localhost:8000/cog';
+        
+        // Variable configurations
+        const variableConfig = {
+            'hs': { name: 'Wave Height', unit: 'm', vmin: 0, vmax: 4, colormap: 'jet' },
+            'tpeak': { name: 'Wave Period', unit: 's', vmin: 0, vmax: 20, colormap: 'viridis' },
+            'dirp': { name: 'Wave Direction', unit: '°', vmin: 0, vmax: 360, colormap: 'hsv' },
+            'u10': { name: 'Wind U', unit: 'm/s', vmin: -15, vmax: 15, colormap: 'RdBu_r' },
+            'v10': { name: 'Wind V', unit: 'm/s', vmin: -15, vmax: 15, colormap: 'RdBu_r' },
+            'tm02': { name: 'Mean Period', unit: 's', vmin: 0, vmax: 15, colormap: 'plasma' }
+        };
+        
+        // Show loading
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+        
+        // Update map overlay
+        function updateOverlay() {
+            const config = variableConfig[currentVariable];
+            const colormap = document.getElementById('colormapSelect').value;
+            
+            // Determine endpoint based on approach
+            let endpoint;
+            if (currentApproach === 'direct') {
+                endpoint = `${baseUrl}/cook-islands-ugrid-direct/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&colormap=${colormap}&vmin=${config.vmin}&vmax=${config.vmax}`;
+            } else {
+                endpoint = `${baseUrl}/cook-islands-ugrid/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&colormap=${colormap}&vmin=${config.vmin}&vmax=${config.vmax}`;
+            }
+            
+            // Remove existing overlay
+            if (currentOverlay) {
+                map.removeLayer(currentOverlay);
+            }
+            
+            // Add new overlay
+            currentOverlay = L.tileLayer(endpoint, {
+                opacity: document.getElementById('opacitySlider').value / 100,
+                maxZoom: 18,
+                attribution: 'Wave Data: Pacific Community (SPC)'
+            });
+            
+            currentOverlay.on('loading', function() {
+                showLoading(true);
+            });
+            
+            currentOverlay.on('load', function() {
+                showLoading(false);
+            });
+            
+            currentOverlay.on('tileerror', function(e) {
+                console.log('Tile error:', e);
+                showLoading(false);
+            });
+            
+            currentOverlay.addTo(map);
+            
+            // Update info
+            const approachName = currentApproach === 'direct' ? 'Direct Mesh' : 'Interpolated Grid';
+            document.getElementById('current-info').textContent = 
+                `${approachName} - ${config.name} - +${currentTime} hours`;
+        }
+        
+        // Event listeners
+        document.querySelectorAll('.approach-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.approach-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentApproach = this.dataset.approach;
+                updateOverlay();
+            });
+        });
+        
+        document.querySelectorAll('.var-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.var-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentVariable = this.dataset.var;
+                updateOverlay();
+            });
+        });
+        
+        document.getElementById('timeSlider').addEventListener('input', function() {
+            currentTime = this.value;
+            document.getElementById('time-display').textContent = `+${currentTime} hours`;
+            updateOverlay();
+        });
+        
+        document.getElementById('opacitySlider').addEventListener('input', function() {
+            const opacity = this.value / 100;
+            document.getElementById('opacity-display').textContent = `${this.value}%`;
+            if (currentOverlay) {
+                currentOverlay.setOpacity(opacity);
+            }
+        });
+        
+        document.getElementById('colormapSelect').addEventListener('change', function() {
+            updateOverlay();
+        });
+        
+        // Initial load
+        updateOverlay();
+        
+        // Add Cook Islands marker
+        L.marker([-21.2, -159.7])
+            .addTo(map)
+            .bindPopup('<b>🏝️ Rarotonga</b><br>Cook Islands<br>UGRID Wave Forecast Data');
+    </script>
+</body>
+</html>
