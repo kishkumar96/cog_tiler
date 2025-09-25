@@ -120,5 +120,5 @@ if __name__ == "__main__":
     test_file = save_and_test_dataset()
     print(f"\n=== Next Steps ===")
     print(f"1. Use this test file: file://{os.path.abspath(test_file)}")
-    print(f"2. Test with COG tiler: /cog/cook-islands/10/57/573.png")
+    print(f"2. Test with COG tiler: /ncWMS/cook-islands/10/57/573.png")
     print(f"3. Once network access is fixed, switch back to: gemthredsshpc.spc.int")

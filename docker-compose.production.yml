@@ -1,0 +1,140 @@
+version: "3.8"
+
+services:
+  cog-tile-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.improved
+    image: cog-tile-server:latest
+    container_name: cog-tile-server
+    
+    ports:
+      - "8084:8001"
+    
+    volumes:
+      - cog_cache:/app/cache
+      - /mnt/data/ocean_portal/datasets:/app/datasets:ro
+      - ./logs:/app/logs
+    
+    environment:
+      # GDAL Optimization
+      GDAL_CACHEMAX: "2048"
+      GDAL_NUM_THREADS: "ALL_CPUS"
+      GDAL_TIFF_OVR_BLOCKSIZE: "256"
+      GDAL_DISABLE_READDIR_ON_OPEN: "EMPTY_DIR"
+      VSI_CACHE: "TRUE"
+      VSI_CACHE_SIZE: "50000000"
+      
+      # Application settings
+      PYTHONUNBUFFERED: "1"
+      CACHE_DIR: "/app/cache"
+      LOG_LEVEL: "INFO"
+      ENVIRONMENT: "production"
+      
+      # Performance tuning
+      GDAL_HTTP_TIMEOUT: "60"
+      GDAL_HTTP_MAX_RETRY: "5"
+      CPL_VSIL_CURL_CACHE_SIZE: "500000000"
+      
+      # Security
+      FORWARDED_ALLOW_IPS: "*"
+      PROXY_HEADERS: "1"
+    
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '4.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    
+    networks:
+      - cog-network
+    
+    # Labels for monitoring
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cog-tiler.rule=Host(`cog-tiler.yourdomain.com`)"
+      - "traefik.http.services.cog-tiler.loadbalancer.server.port=8001"
+
+  # Redis for caching (optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: cog-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - cog-network
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  # Monitoring with Prometheus metrics (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cog-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - cog-network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cog-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: changeme
+    networks:
+      - cog-network
+    profiles:
+      - monitoring
+
+volumes:
+  cog_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/cog_tiler/cache
+  
+  redis_data:
+    driver: local
+  
+  prometheus_data:
+    driver: local
+  
+  grafana_data:
+    driver: local
+
+networks:
+  cog-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,21 +1,23 @@
-
+version: "3.8"
 
 services:
   cog-tile-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.improved
     image: cog-tile-server:latest
     container_name: cog-tile-server
-    # Fixed port mapping - use 8082 to match Dockerfile
-    ports:
-      - "8082:8082"
     
-    # Add persistent cache volume and read-only data mount
+    # Fixed port mapping - use 8001 consistently
+    ports:
+      - "8084:8001"
+    
+    # Persistent volumes for cache and data
     volumes:
-      - ./cache:/app/cache
+      - cog_cache:/app/cache
       - /mnt/data/ocean_portal/datasets:/app/datasets:ro
-
+    
+    # Optimized environment variables
     environment:
       # GDAL Optimization
       GDAL_CACHEMAX: "1024"
@@ -35,22 +37,48 @@ services:
       GDAL_HTTP_MAX_RETRY: "3"
       CPL_VSIL_CURL_CACHE_SIZE: "200000000"
     
-    # Add resource limits
+    # Resource limits to prevent OOM
     deploy:
       resources:
         limits:
           memory: 2G
-          cpus: '1.0'
+          cpus: '2.0'
         reservations:
           memory: 512M
           cpus: '0.5'
     
+    # Restart policy
     restart: unless-stopped
     
-    # Fixed health check - use Python instead of curl since curl is not installed
+    # Fixed health check with correct endpoint and port
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/ncWMS/health').read()"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Network configuration
+    networks:
+      - cog-network
+
+# Named volumes for persistence
+volumes:
+  cog_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/cog_tiler/cache
+
+# Dedicated network
+networks:
+  cog-network:
+    driver: bridge

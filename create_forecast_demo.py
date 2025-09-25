@@ -19,7 +19,7 @@ def create_application_demo():
     
     # Test the metadata endpoint
     try:
-        response = requests.get("http://localhost:8000/cog/forecast/metadata", timeout=10)
+        response = requests.get("http://localhost:8082/ncWMS/forecast/metadata", timeout=10)
         metadata = response.json()
         print("✅ Metadata endpoint working")
     except Exception as e:
@@ -28,7 +28,7 @@ def create_application_demo():
     
     # Test the status endpoint
     try:
-        response = requests.get("http://localhost:8000/cog/forecast/status", timeout=10)
+        response = requests.get("http://localhost:8082/ncWMS/forecast/status", timeout=10)
         status = response.json()
         print("✅ Status endpoint working")
         print(f"   System: {status['system']}")

@@ -1,13 +1,17 @@
 # Cook Islands COG Tiler 🏝️
 
-A high-performance Cloud Optimized GeoTIFF (COG) tile server specifically enhanced for Cook Islands ocean visualization datasets, with professional WMS-quality rendering.
+A high-performance, on-the-fly Cloud Optimized GeoTIFF (COG) tile server. It is specifically enhanced for visualizing Cook Islands oceanographic datasets, including UGRID and gridded NetCDF data, with professional, WMS-quality rendering.
 
 ## 🎯 Key Features
 
 - **Cook Islands Datasets**: Native support for Rarotonga inundation depth and UGRID data
-- **Professional Quality**: Antialiased contours matching WMS visual standards  
+- **On-the-Fly COG Generation**: Creates and caches COGs from raw NetCDF data upon first request.
+- **Professional Quality**: Antialiased contours matching WMS visual standards.
 - **Multiple Formats**: Regular grids + UGRID unstructured mesh support
-- **Interactive Viewer**: Real-time tile testing with parameter adjustment
+- **Multiple Interactive Viewers**:
+    - `forecast-app`: A full-featured, world-class forecasting application.
+    - `ugrid-comparison`: A tool to compare rendering techniques for UGRID data.
+    - `cook_islands_viewer`: A basic tile testing interface.
 - **Network Resilient**: Local test data fallback for development
 - **WMS Comparison**: Side-by-side quality validation tools
 
@@ -25,10 +29,8 @@ pip install -r requirements.txt
 
 ### 2. Start Server
 ```bash
-# Start COG tile server
-uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-
-# Server will be available at http://localhost:8001
+# Start COG tile server (runs on http://localhost:8082)
+uvicorn main:app --host 0.0.0.0 --port 8082 --reload
 ```
 
 ### 3. Test Endpoints
@@ -143,12 +145,14 @@ uvicorn main:app --host 0.0.0.0 --port 8001 --reload --log-level debug
 ```
 cog_tiler/
 ├── main.py                              # FastAPI server + Cook Islands endpoints
+├── cog_generator.py                     # Core on-the-fly COG generation logic
 ├── plotters.py                          # Enhanced plotting with antialiasing
 ├── data_reader.py                       # NetCDF/OPeNDAP data loading
 ├── requirements.txt                     # Python dependencies
-├── cook_islands_config.json             # Dataset configurations
-├── cook_islands_viewer.html             # Interactive web interface
+├── forecast_app.html                    # Main forecast application
+├── ugrid_comparison_app.html            # UGRID rendering comparison app
 ├── cook_islands_test_data.nc            # Synthetic test dataset (73KB)
+├── Dockerfile                           # Container definition
 ├── COOK_ISLANDS_INTEGRATION_SUMMARY.md  # Complete documentation
 ├── create_cook_islands_test.py          # Test data generator
 ├── test_cook_islands_integration.py     # Integration test suite
@@ -165,14 +169,14 @@ When network access to SPC THREDDS server is available:
 
 1. **Update server URLs** in `main.py`:
    ```python
-   # Replace with correct server name/IP
+   # Replace with correct server name/IP if needed
    cook_islands_url = "http://CORRECT_SERVER/thredds/dodsC/..."
    ```
 
-2. **Set network parameters**:
+2. **Test with remote data**:
    ```bash
    # Test real endpoints
-   curl "http://localhost:8001/cog/cook-islands/10/57/573.png?use_local=false"
+   curl "http://localhost:8082/ncWMS/cook-islands/10/57/573.png?use_local=false"
    ```
 
 3. **Configure proxy** (if required):
@@ -195,15 +199,14 @@ When network access to SPC THREDDS server is available:
 
 ## 🏗️ Next Steps
 
-1. **Network Resolution**: Configure access to SPC THREDDS server
-2. **Widget Integration**: Connect to ocean visualization widgets  
-3. **Color Matching**: Fine-tune to match exact WMS color schemes
-4. **Performance**: Optimize for production tile serving
-5. **Deployment**: Configure for production environment
+1. **Widget Integration**: Connect the tile server to other ocean visualization widgets.
+2. **Color Matching**: Fine-tune colormaps to match exact WMS color schemes if required.
+3. **Performance**: Implement proactive COG pre-generation for even faster tile serving.
+4. **Deployment**: Deploy using the provided Docker configuration to a production environment.
 
 ## 📞 Support
 
-For issues or questions:
+For issues or questions, please check the following:
 1. Check the integration test output: `python3 test_cook_islands_integration.py`
 2. Review server logs for errors
 3. Test with local data first (`use_local=true`)

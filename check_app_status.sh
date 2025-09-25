@@ -9,23 +9,23 @@ echo ""
 echo "🌐 APPLICATION ACCESS:"
 echo ""
 echo "1. 📱 Main Forecast App:"
-echo "   http://localhost:8001/cog/forecast-app"
+echo "   http://localhost:8082/ncWMS/forecast-app"
 echo ""
 echo "2. 📊 API Endpoints:"
-echo "   http://localhost:8001/cog/forecast/metadata"
-echo "   http://localhost:8001/cog/forecast/status" 
-echo "   http://localhost:8001/cog/docs"
+echo "   http://localhost:8082/ncWMS/forecast/metadata"
+echo "   http://localhost:8082/ncWMS/forecast/status" 
+echo "   http://localhost:8082/ncWMS/docs"
 echo ""
 echo "3. 🎯 COG Tile Endpoints:"
-echo "   http://localhost:8001/cog/cook-islands/{z}/{x}/{y}.png"
-echo "   http://localhost:8001/cog/cook-islands-ugrid/{z}/{x}/{y}.png"
+echo "   http://localhost:8082/ncWMS/cook-islands/{z}/{x}/{y}.png"
+echo "   http://localhost:8082/ncWMS/cook-islands-ugrid/{z}/{x}/{y}.png"
 echo ""
 echo "🔧 TESTING CONNECTIVITY:"
 echo ""
 
 # Test main endpoints
 echo "Testing forecast app..."
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8001/cog/forecast-app")
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8082/ncWMS/forecast-app")
 if [ "$STATUS" = "200" ]; then
     echo "✅ Forecast App: WORKING"
 else
@@ -33,7 +33,7 @@ else
 fi
 
 echo "Testing metadata..."
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8001/cog/forecast/metadata")
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8082/ncWMS/forecast/metadata")
 if [ "$STATUS" = "200" ]; then
     echo "✅ Metadata API: WORKING"
 else
@@ -41,7 +41,7 @@ else
 fi
 
 echo "Testing status..."
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8001/cog/forecast/status")
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8082/ncWMS/forecast/status")
 if [ "$STATUS" = "200" ]; then
     echo "✅ Status API: WORKING"
 else
@@ -59,7 +59,7 @@ echo "3. 📱 Click the forwarded URL to open the application"
 echo ""
 echo "OR"
 echo ""
-echo "1. 💻 Copy this URL: http://localhost:8001/cog/forecast-app"
+echo "1. 💻 Copy this URL: http://localhost:8082/ncWMS/forecast-app"
 echo "2. 🌐 Paste it in your browser"
 echo "3. 📱 Enjoy the world-class wave forecast!"
 echo ""

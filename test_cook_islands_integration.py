@@ -13,7 +13,7 @@ import numpy as np
 def test_cook_islands_endpoints():
     """Test all Cook Islands endpoints and create comparison visualizations"""
     
-    base_url = "http://localhost:8001/cog"
+    base_url = "http://localhost:8082/ncWMS"
     
     print("=== Cook Islands COG Tiler Integration Test ===")
     

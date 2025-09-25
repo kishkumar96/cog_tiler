@@ -1,15 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cook Islands Wave Forecast - World Class Marine Forecasting</title>
     
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />    
     
     <style>
         * {
@@ -308,7 +305,7 @@
                     <div class="var-btn" data-var="v10" data-source="ugrid">Wind V</div>
                     <div class="var-btn" data-var="dirp" data-source="ugrid">Wave Dir</div>
                     <div class="var-btn" data-var="dirm" data-source="ugrid">Mean Dir</div>
-                    <div class="var-btn" data-var="Band1" data-source="gridded">Inundation</div>
+                    <div class="var-btn" data-var="inundation_depth" data-source="gridded">Inundation</div>
                 </div>
             </div>
 
@@ -381,7 +378,7 @@
         let map;
         let currentOverlay = null;
         let currentVariable = 'hs';
-        let currentSource = 'cog';
+        let currentSource = 'ugrid';
         let currentTime = 0;
         let forecastStartTime = new Date();
         
@@ -390,6 +387,7 @@
         // Initialize the application
         function initializeApp() {
             initializeMap();
+            currentSource = document.querySelector('.var-btn.active').dataset.source;
             setupEventListeners();
             updateForecastDisplay();
             loadDynamicConfig().then(() => {
@@ -399,12 +397,9 @@
 
         // Dynamically load configuration from the backend
         async function loadDynamicConfig() {
-            const isCodespace = window.location.hostname.includes('app.github.dev');
-            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
-            try {
-                const response = await fetch(`${baseUrl}/cog/forecast/metadata`);
+            try {                
+                const response = await fetch(`/ncWMS/forecast/metadata`);                
                 const metadata = await response.json();
-                
                 // Process metadata into the format the frontend expects
                 for (const [key, value] of Object.entries(metadata.variables)) {
                     variableConfig[key] = {
@@ -417,15 +412,6 @@
                     };
                 }
                 
-                // Manually add complex styling for now
-                variableConfig['Band1'].discrete = true;
-                variableConfig['Band1'].levels = [
-                    { value: 0.25, color: '#eff3ff' },
-                    { value: 0.5, color: '#bdd7e7' },
-                    { value: 1.0, color: '#6baed6' },
-                    { value: 2.0, color: '#3182bd' },
-                    { value: 5.0, color: '#08519c' }
-                ];
                 console.log("✅ Dynamically loaded variable configuration.");
             } catch (error) {
                 console.error("❌ Failed to load dynamic configuration:", error);
@@ -497,7 +483,6 @@
             const timeSlider = document.getElementById('timeSlider');
             timeSlider.addEventListener('input', function() {
                 currentTime = parseInt(this.value);
-                updateTimeDisplay();
                 loadForecastData();
             });
 
@@ -548,7 +533,7 @@
                     gradientStops.push(`${level.color} ${level.value / config.vmax * 100}%`);
                     labelsHtml += `<span style="flex-basis: ${level.value / config.vmax * 100}%">${level.value}</span>`;
                     lastValue = level.value;
-                });
+                }); 
                 legendGradientDiv.style.background = `linear-gradient(90deg, ${gradientStops.join(', ')})`;
                 legendLabels.innerHTML = `<span>0</span>` + config.levels.map(l => `<span>${l.value}</span>`).join('');
                 legendLabels.style.justifyContent = 'space-between';
@@ -581,21 +566,14 @@
 
         // Load forecast data
         function loadForecastData() {
+            updateTimeDisplay(); // Update time display just before loading
+
             showLoading(true);
             
             const config = variableConfig[currentVariable];
-            let endpoint;
-            
-            // Detect if we're in a Codespace and use the appropriate protocol
-            const isCodespace = window.location.hostname.includes('app.github.dev');
-            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
-            
-            if (currentSource === 'gridded') {
-                endpoint = `${baseUrl}/cog/cook-islands/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
-            } else { // 'ugrid'
-                // UGRID direct rendering
-                endpoint = `${baseUrl}/cog/cook-islands-ugrid/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
-            }
+            const endpoint = currentSource === 'gridded'
+                ? `/ncWMS/cook-islands/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`
+                : `/ncWMS/cook-islands-ugrid/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
 
             // Remove existing overlay
             if (currentOverlay) {
@@ -644,11 +622,7 @@
             const config = variableConfig[currentVariable];
             
             // Try to fetch real current values from API
-            const isCodespace = window.location.hostname.includes('app.github.dev');
-            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
-            
-            fetch(`${baseUrl}/cog/forecast/current/${currentVariable}?time_index=${currentTime}`)
-                .then(response => response.json())
+            fetch(`/ncWMS/forecast/current/${currentVariable}?time_index=${currentTime}`).then(response => response.json())
                 .then(data => {
                     if (data.status === 'success' && data.value !== null) {
                         document.getElementById('current-value').textContent = data.value.toFixed(2);

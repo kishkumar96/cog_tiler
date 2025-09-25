@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+.tox/
+dist/
+build/
+*.egg-info/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+cog_venv/
+
+# COG Tiler Specific - CRITICAL: Exclude cache directory
+cache/
+*.tif
+*.tif.lock
+cogs/
+temp_*.tif
+temp_*.png
+
+# Development files
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs and debug files
+*.log
+nohup.out
+server*.log
+debug*.log
+
+# Test outputs and generated files
+*_tile.png
+*_test.png
+debug_tile*.png
+test_*.png
+*.png
+antialiasing_comparison.png
+cook_islands_*.png
+professional_*.png
+ugrid_*.png
+wave_*.png
+
+# Documentation and demos
+*.md
+DEMO.png
+SUMMARY.md
+GUIDE.md
+
+# Configuration (keep only essential)
+dev_config.json
+dataset_mapper.json
+commands.txt
+
+# Data files - exclude large test data
+*.nc
+cook_islands_test_data.nc
+
+# HTML demo files - exclude most but keep essential ones
+demo_display.html
+cook_islands_viewer.html
+protocol_test.html
+# Keep forecast_app.html and ugrid_comparison_app.html for the service

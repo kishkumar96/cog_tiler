@@ -110,7 +110,8 @@ class COGGenerator:
             print(f"Generating new COG: {cog_name}")
             
             # Load data from THREDDS
-            url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+            url = os.getenv("THREDDS_UGRID_URL", "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc")            
+            print(f"Using THREDDS URL: {url}")
             
         try:
             print(f"Loading data from THREDDS for {variable} at time {time_index}...")

@@ -27,6 +27,7 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling, tr
 from fastapi import FastAPI, Response, HTTPException, Query, APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -117,7 +118,12 @@ async def lifespan(app: FastAPI):
 # -----------------------------------------------------------------------------
 # FastAPI app + middleware
 # -----------------------------------------------------------------------------
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/ncWMS/docs",
+    openapi_url="/ncWMS/openapi.json",
+    redoc_url="/ncWMS/redoc"
+)
 
 # Add CORS middleware for frontend access
 app.add_middleware(
@@ -128,7 +134,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-router = APIRouter(prefix="/cog")
+router = APIRouter(prefix="/ncWMS")
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -605,13 +611,13 @@ def read_root():
     return {
         "message": "🌊 Cook Islands Wave Forecast API",
         "applications": {
-            "forecast_app": "/cog/forecast-app",
-            "ugrid_comparison": "/cog/ugrid-comparison",
-            "index": "/cog/index"
+            "forecast_app": "/ncWMS/forecast-app",
+            "ugrid_comparison": "/ncWMS/ugrid-comparison",
+            "index": "/ncWMS/index"
         },
         "endpoints": {
-            "cog_status": "/cog/cog-status",
-            "health": "/cog/health"
+            "cog_status": "/ncWMS/cog-status",
+            "health": "/ncWMS/health"
         },
         "status": "running"
     }
@@ -684,7 +690,7 @@ def health_check():
 # Root redirect outside of router
 @app.get("/")
 def root_redirect():
-    return RedirectResponse(url="/cog/index")
+    return RedirectResponse(url="/ncWMS/index")
 
 DEFAULT_URL = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
 DEFAULT_VAR = "hs"
@@ -967,7 +973,7 @@ def tiles_dynamic(
     lon_max: float = Query(300.0),
     lat_min: float = Query(-45.0),
     lat_max: float = Query(45.0),
-    plot: str = Query("contourf", description=lambda: f"Plot type: {'|'.join(AVAILABLE_PLOTS)}"),
+    plot: str = Query("contourf", description=f"Plot type: {'|'.join(AVAILABLE_PLOTS)}"),
     plot_options: Optional[str] = Query(
         None,
         description="JSON dict of matplotlib kwargs; for 'discrete', include ranges (list) and colors (list).",
@@ -1025,7 +1031,7 @@ def cook_islands_wms_comparison(
     x = int((lon + 180.0) / 360.0 * n)
     y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
 
-    cog_tile_url = f"/cog/cook-islands/{zoom}/{x}/{y}.png?variable={variable}"
+    cog_tile_url = f"/ncWMS/cook-islands/{zoom}/{x}/{y}.png?variable={variable}"
     if time:
         cog_tile_url += f"&time={time}"
 
@@ -1313,21 +1319,21 @@ def index_page():
             <h1>🌊 Cook Islands Wave Forecast</h1>
             <p>Advanced UGRID oceanographic visualization applications</p>
             <div class="app-links">
-                <a href="/cog/forecast-app" class="app-link">
+                <a href="/ncWMS/forecast-app" class="app-link">
                     <div class="app-title">🌊 Original Forecast Application</div>
                     <div class="app-desc">
                         Full-featured wave forecast with multiple variables,
                         time controls, and interactive mapping
                     </div>
                 </a>
-                <a href="/cog/ugrid-comparison" class="app-link">
+                <a href="/ncWMS/ugrid-comparison" class="app-link">
                     <div class="app-title">📐 UGRID Approach Comparison <span class="new-badge">NEW</span></div>
                     <div class="app-desc">
                         Compare Direct Triangular Mesh vs Interpolated approaches.
                         See the difference in island boundary preservation!
                     </div>
                 </a>
-                <a href="/cog/docs" class="app-link">
+                <a href="/ncWMS/docs" class="app-link">
                     <div class="app-title">📚 API Documentation</div>
                     <div class="app-desc">Complete API reference with interactive testing interface</div>
                 </a>
@@ -1382,5 +1388,8 @@ def clear_cache():
 
     return JSONResponse(content={"status": "success", "message": "Cache directory has been cleared.", "deleted_files": deleted_files, "deleted_dirs": deleted_dirs})
 
-# Mount router last
+# Mount router first
 app.include_router(router)
+
+# Mount static files under /ncWMS for consistency (after router to avoid conflicts)
+app.mount("/ncWMS", StaticFiles(directory=".", html=True), name="static")

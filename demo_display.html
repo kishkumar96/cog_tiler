@@ -135,10 +135,10 @@
             <div class="demo-card">
                 <h3>🌊 Cook Islands - Inundation Depth</h3>
                 <div class="tile-display">
-                    <img class="tile-image" id="tile1" src="/cog/cook-islands/8/249/124.png?variable=inundation_depth&t=" alt="Inundation Depth Tile">
+                    <img class="tile-image" id="tile1" src="/ncWMS/cook-islands/8/249/124.png?variable=inundation_depth&t=" alt="Inundation Depth Tile">
                 </div>
                 <div class="endpoint-info">
-                    <strong>Endpoint:</strong> /cog/cook-islands/8/249/124.png?variable=inundation_depth<br>
+                    <strong>Endpoint:</strong> /ncWMS/cook-islands/8/249/124.png?variable=inundation_depth<br>
                     <strong>Source:</strong> Rarotonga_inundation_depth.nc<br>
                     <strong>Status:</strong> <span class="status-good" id="status1">Loading...</span>
                 </div>
@@ -149,10 +149,10 @@
             <div class="demo-card">
                 <h3>🌊 UGRID - Sea Surface Height</h3>
                 <div class="tile-display">
-                    <img class="tile-image" id="tile2" src="/cog/cook-islands-ugrid/8/249/124.png?variable=sea_surface_height_above_geoid&t=" alt="Sea Surface Height Tile">
+                    <img class="tile-image" id="tile2" src="/ncWMS/cook-islands-ugrid/8/249/124.png?variable=sea_surface_height_above_geoid&t=" alt="Sea Surface Height Tile">
                 </div>
                 <div class="endpoint-info">
-                    <strong>Endpoint:</strong> /cog/cook-islands-ugrid/8/249/124.png?variable=sea_surface_height_above_geoid<br>
+                    <strong>Endpoint:</strong> /ncWMS/cook-islands-ugrid/8/249/124.png?variable=sea_surface_height_above_geoid<br>
                     <strong>Source:</strong> UGRID Structured Data<br>
                     <strong>Status:</strong> <span class="status-good" id="status2">Loading...</span>
                 </div>
@@ -163,10 +163,10 @@
             <div class="demo-card">
                 <h3>🔍 Zoom Level 7 - Same Variable</h3>
                 <div class="tile-display">
-                    <img class="tile-image" id="tile3" src="/cog/cook-islands/7/124/62.png?variable=inundation_depth&t=" alt="Zoom 7 Tile">
+                    <img class="tile-image" id="tile3" src="/ncWMS/cook-islands/7/124/62.png?variable=inundation_depth&t=" alt="Zoom 7 Tile">
                 </div>
                 <div class="endpoint-info">
-                    <strong>Endpoint:</strong> /cog/cook-islands/7/124/62.png?variable=inundation_depth<br>
+                    <strong>Endpoint:</strong> /ncWMS/cook-islands/7/124/62.png?variable=inundation_depth<br>
                     <strong>Zoom:</strong> 7 (Lower resolution)<br>
                     <strong>Status:</strong> <span class="status-good" id="status3">Loading...</span>
                 </div>
@@ -230,7 +230,7 @@
             const comparisonDiv = document.getElementById('comparisonData');
             comparisonDiv.innerHTML = 'Loading...';
             
-            fetch('/cog/cook-islands/wms-comparison?variable=inundation_depth&zoom=8&x=249&y=124')
+            fetch('/ncWMS/cook-islands/wms-comparison?variable=inundation_depth&zoom=8&x=249&y=124')
                 .then(response => response.json())
                 .then(data => {
                     comparisonDiv.innerHTML = `
@@ -254,7 +254,7 @@
             const resultsDiv = document.getElementById('performanceResults');
             resultsDiv.innerHTML = 'Running performance test...';
             
-            const testUrl = '/cog/cook-islands/8/249/124.png?variable=inundation_depth&perftest=' + Date.now();
+            const testUrl = '/ncWMS/cook-islands/8/249/124.png?variable=inundation_depth&perftest=' + Date.now();
             const startTime = Date.now();
             
             fetch(testUrl)
@@ -289,7 +289,7 @@
         // Initialize the demo
         window.onload = function() {
             // Check server status
-            fetch('/cog/')
+            fetch('/ncWMS/')
                 .then(response => response.json())
                 .then(data => {
                     console.log('Server is online:', data);
