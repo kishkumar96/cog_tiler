@@ -6,22 +6,46 @@ A high-performance, on-the-fly Cloud Optimized GeoTIFF (COG) tile server. It is 
 
 - **Cook Islands Datasets**: Native support for Rarotonga inundation depth and UGRID data
 - **On-the-Fly COG Generation**: Creates and caches COGs from raw NetCDF data upon first request.
-- **Professional Quality**: Antialiased contours matching WMS visual standards.
-- **Multiple Formats**: Regular grids + UGRID unstructured mesh support
+- **Professional Quality**: Antialiased contours and direct triangular mesh rendering that matches WMS visual standards.
+- **Multiple Formats**: Supports both regular grids and UGRID unstructured meshes, preserving scientific accuracy.
 - **Multiple Interactive Viewers**:
     - `forecast-app`: A full-featured, world-class forecasting application.
     - `ugrid-comparison`: A tool to compare rendering techniques for UGRID data.
-    - `cook_islands_viewer`: A basic tile testing interface.
-- **Network Resilient**: Local test data fallback for development
+- **Dockerized**: Production-ready Docker and Docker Compose setup with health checks and persistent caching.
+- **Network Resilient**: Local test data fallback for development.
 - **WMS Comparison**: Side-by-side quality validation tools
 
-## 🚀 Quick Start (Codespace)
+## 🚀 Quick Start (Docker)
+
+This is the recommended method for running the application.
+
+### 1. Prerequisites
+- Docker
+- Docker Compose
+
+### 2. Start the Server
+```bash
+# Build the image and start the service in the background
+docker-compose up --build -d
+```
+This will start the server on `http://localhost:8082`. The `./cache` directory is mounted into the container, so your generated COGs will persist across restarts.
+
+### 3. Access the Applications
+Visit the main index page to access all applications:
+**`http://localhost:8082/ncWMS/index`**
+
+### 4. Stop the Server
+```bash
+docker-compose down
+```
+
+## 🚀 Quick Start (Local Development)
 
 ### 1. Setup Environment
 ```bash
 # Create virtual environment
-python3 -m venv cog_venv
-source cog_venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
