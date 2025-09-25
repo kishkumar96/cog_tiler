@@ -303,10 +303,12 @@
                 <div class="variable-buttons">
                     <div class="var-btn active" data-var="hs" data-source="ugrid">Wave Height</div>
                     <div class="var-btn" data-var="tpeak" data-source="ugrid">Wave Period</div>
+                    <div class="var-btn" data-var="tm02" data-source="ugrid">Mean Period</div>
                     <div class="var-btn" data-var="u10" data-source="ugrid">Wind U</div>
                     <div class="var-btn" data-var="v10" data-source="ugrid">Wind V</div>
-                    <div class="var-btn" data-var="Band1" data-source="gridded">Inundation</div>
                     <div class="var-btn" data-var="dirp" data-source="ugrid">Wave Dir</div>
+                    <div class="var-btn" data-var="dirm" data-source="ugrid">Mean Dir</div>
+                    <div class="var-btn" data-var="Band1" data-source="gridded">Inundation</div>
                 </div>
             </div>
 
@@ -379,68 +381,56 @@
         let map;
         let currentOverlay = null;
         let currentVariable = 'hs';
-        let currentSource = 'ugrid';
+        let currentSource = 'cog';
         let currentTime = 0;
         let forecastStartTime = new Date();
         
-        // Variable configurations
-        const variableConfig = {
-            'hs': {
-                name: 'Wave Height',
-                units: 'meters',
-                colorScale: 'plasma',
-                vmin: 0,
-                vmax: 4.0,
-                gradient: 'linear-gradient(90deg, #0d0887 0%, #7e03a8 25%, #cc4778 50%, #f89441 75%, #f0f921 100%)'
-            },
-            'tpeak': {
-                name: 'Peak Wave Period',
-                units: 'seconds',
-                colorScale: 'viridis',
-                vmin: 2,
-                vmax: 20,
-                gradient: 'linear-gradient(90deg, #440154 0%, #31688e 25%, #35b779 50%, #8fd744 75%, #fde725 100%)'
-            },
-            'u10': {
-                name: 'Wind U Component',
-                units: 'm/s',
-                colorScale: 'RdBu_r',
-                vmin: -15,
-                vmax: 15,
-                gradient: 'linear-gradient(90deg, #67001f 0%, #d6604d 25%, #f7f7f7 50%, #4393c3 75%, #053061 100%)'
-            },
-            'v10': {
-                name: 'Wind V Component', 
-                units: 'm/s',
-                colorScale: 'RdBu_r',
-                vmin: -15,
-                vmax: 15,
-                gradient: 'linear-gradient(90deg, #67001f 0%, #d6604d 25%, #f7f7f7 50%, #4393c3 75%, #053061 100%)'
-            },
-            'Band1': {
-                name: 'Inundation Depth',
-                units: 'meters',
-                colorScale: 'Blues',
-                vmin: 0,
-                vmax: 3,
-                gradient: 'linear-gradient(90deg, #f7fbff 0%, #c6dbef 25%, #6baed6 50%, #2171b5 75%, #08306b 100%)'
-            },
-            'dirp': {
-                name: 'Peak Wave Direction',
-                units: 'degrees',
-                colorScale: 'hsv',
-                vmin: 0,
-                vmax: 360,
-                gradient: 'linear-gradient(90deg, #ff0000 0%, #ffff00 16.67%, #00ff00 33.33%, #00ffff 50%, #0000ff 66.67%, #ff00ff 83.33%, #ff0000 100%)'
-            }
-        };
+        let variableConfig = {}; // This will be loaded dynamically
 
         // Initialize the application
         function initializeApp() {
             initializeMap();
             setupEventListeners();
             updateForecastDisplay();
-            loadInitialData();
+            loadDynamicConfig().then(() => {
+                loadInitialData();
+            });
+        }
+
+        // Dynamically load configuration from the backend
+        async function loadDynamicConfig() {
+            const isCodespace = window.location.hostname.includes('app.github.dev');
+            const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
+            try {
+                const response = await fetch(`${baseUrl}/cog/forecast/metadata`);
+                const metadata = await response.json();
+                
+                // Process metadata into the format the frontend expects
+                for (const [key, value] of Object.entries(metadata.variables)) {
+                    variableConfig[key] = {
+                        name: value.name,
+                        units: value.units,
+                        colorScale: value.colormap,
+                        vmin: value.range[0],
+                        vmax: value.range[1],
+                        // Note: Gradients and discrete levels would need to be generated or stored in metadata
+                    };
+                }
+                
+                // Manually add complex styling for now
+                variableConfig['Band1'].discrete = true;
+                variableConfig['Band1'].levels = [
+                    { value: 0.25, color: '#eff3ff' },
+                    { value: 0.5, color: '#bdd7e7' },
+                    { value: 1.0, color: '#6baed6' },
+                    { value: 2.0, color: '#3182bd' },
+                    { value: 5.0, color: '#08519c' }
+                ];
+                console.log("✅ Dynamically loaded variable configuration.");
+            } catch (error) {
+                console.error("❌ Failed to load dynamic configuration:", error);
+                // Here you might want to load a static fallback config
+            }
         }
 
         // Initialize the map
@@ -457,12 +447,14 @@
             // Add base map layers
             const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles © Esri',
-                maxZoom: 18
+                maxZoom: 18,
+                detectRetina: true
             });
 
             const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
-                maxZoom: 18
+                maxZoom: 18,
+                detectRetina: true
             });
 
             // Add satellite as default
@@ -525,15 +517,48 @@
         function updateVariableDisplay() {
             const config = variableConfig[currentVariable];
             
+            // Check if config exists
+            if (!config) {
+                console.error(`No configuration found for variable: ${currentVariable}`);
+                // Fall back to hs if current variable is not configured
+                currentVariable = 'hs';
+                const fallbackConfig = variableConfig[currentVariable];
+                if (!fallbackConfig) {
+                    console.error('Fallback configuration not found');
+                    return;
+                }
+                updateVariableDisplay(); // Recursive call with fallback
+                return;
+            }
+            
             document.getElementById('current-variable').textContent = `${config.name} (${currentVariable})`;
             document.getElementById('current-units').textContent = config.units;
             
             // Update legend
-            const legendGradient = document.getElementById('legend-gradient');
-            legendGradient.style.background = config.gradient;
-            
             const legendLabels = document.getElementById('legend-labels');
-            legendLabels.innerHTML = `<span>${config.vmin}</span><span>${config.vmax}</span>`;
+            const legendGradientDiv = document.getElementById('legend-gradient');
+
+            if (config.discrete && config.levels) {
+                // --- World-class discrete legend ---
+                let gradientStops = [];
+                let labelsHtml = '';
+                let lastValue = 0;
+                config.levels.forEach(level => {
+                    gradientStops.push(`${level.color} ${lastValue / config.vmax * 100}%`);
+                    gradientStops.push(`${level.color} ${level.value / config.vmax * 100}%`);
+                    labelsHtml += `<span style="flex-basis: ${level.value / config.vmax * 100}%">${level.value}</span>`;
+                    lastValue = level.value;
+                });
+                legendGradientDiv.style.background = `linear-gradient(90deg, ${gradientStops.join(', ')})`;
+                legendLabels.innerHTML = `<span>0</span>` + config.levels.map(l => `<span>${l.value}</span>`).join('');
+                legendLabels.style.justifyContent = 'space-between';
+
+            } else {
+                // --- Standard continuous legend ---
+                legendGradientDiv.style.background = config.gradient;
+                legendLabels.innerHTML = `<span>${config.vmin}</span><span>${config.vmax}</span>`;
+                legendLabels.style.justifyContent = 'space-between';
+            }
         }
 
         // Update time display
@@ -565,10 +590,11 @@
             const isCodespace = window.location.hostname.includes('app.github.dev');
             const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
             
-            if (currentSource === 'ugrid') {
-                endpoint = `${baseUrl}/cog/cook-islands-cog/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
-            } else {
+            if (currentSource === 'gridded') {
                 endpoint = `${baseUrl}/cog/cook-islands/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
+            } else { // 'ugrid'
+                // UGRID direct rendering
+                endpoint = `${baseUrl}/cog/cook-islands-ugrid/{z}/{x}/{y}.png?variable=${currentVariable}&time=${currentTime}&vmin=${config.vmin}&vmax=${config.vmax}&colormap=${config.colorScale}`;
             }
 
             // Remove existing overlay
@@ -576,11 +602,20 @@
                 map.removeLayer(currentOverlay);
             }
 
+            // Debug output
+            console.log('Loading tiles with config:', {
+                variable: currentVariable,
+                source: currentSource,
+                time: currentTime,
+                endpoint: endpoint
+            });
+
             // Add new overlay
             currentOverlay = L.tileLayer(endpoint, {
                 opacity: document.getElementById('opacitySlider').value / 100,
                 maxZoom: 18,
-                attribution: 'Wave Data: Pacific Community (SPC)'
+                attribution: 'Wave Data: Pacific Community (SPC)',
+                detectRetina: true
             });
 
             currentOverlay.on('loading', function() {
@@ -593,7 +628,10 @@
             });
 
             currentOverlay.on('tileerror', function(error) {
-                console.warn('Tile loading error:', error);
+                console.error('Tile loading error:', error);
+                console.error('Failed endpoint:', endpoint);
+                console.error('Current variable:', currentVariable);
+                console.error('Current source:', currentSource);
                 showLoading(false);
                 document.getElementById('current-value').textContent = 'Data not available';
             });
@@ -632,7 +670,7 @@
                         case 'v10':
                             mockValue = (Math.random() * 20 - 10).toFixed(1);
                             break;
-                        case 'Band1':
+                        case 'inundation_depth':
                             mockValue = (Math.random() * 2).toFixed(3);
                             break;
                         case 'dirp':

@@ -5,10 +5,12 @@ import uuid
 import json
 import hashlib
 import tempfile
+import shutil
 import logging
 from logging.config import dictConfig
 from io import BytesIO
 from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Optional, Tuple, Dict, Any, Union
 from urllib.parse import unquote, urlencode
 from uuid import uuid4
@@ -81,21 +83,51 @@ logger = logging.getLogger("tile-server")
 cog_logger = logging.getLogger("cog-tiles")
 
 # -----------------------------------------------------------------------------
-# Optional GDAL/RasterIO tuning
+# Optimized GDAL/RasterIO settings for COG performance
 # -----------------------------------------------------------------------------
-os.environ.setdefault("GDAL_CACHEMAX", "512")
-os.environ.setdefault("GDAL_NUM_THREADS", "ALL_CPUS")
-os.environ.setdefault("GDAL_TIFF_OVR_BLOCKSIZE", "128")
+try:
+    from cog_config import configure_gdal_environment, OPTIMIZED_COG_PROFILE
+    gdal_settings = configure_gdal_environment()
+    logger.info(f"✅ Configured {len(gdal_settings)} GDAL optimization settings")
+except ImportError:
+    # Fallback configuration if cog_config not available
+    os.environ.setdefault("GDAL_CACHEMAX", "512")
+    os.environ.setdefault("GDAL_NUM_THREADS", "ALL_CPUS")
+    os.environ.setdefault("GDAL_TIFF_OVR_BLOCKSIZE", "256")
+    os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+    os.environ.setdefault("VSI_CACHE", "TRUE")
+    os.environ.setdefault("VSI_CACHE_SIZE", "25000000")
+    logger.info("⚠️ Using fallback GDAL configuration")
+
+# -----------------------------------------------------------------------------
+# App Lifespan (Startup/Shutdown Events)
+# -----------------------------------------------------------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- On Startup ---
+    # Use local cache directory for development, Docker path for production
+    global CACHE_DIR
+    CACHE_DIR = Path(os.environ.get("CACHE_DIR", "cache"))
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info(f"✅ Cache directory ensured at: {CACHE_DIR.resolve()}")
+    yield
+    # --- On Shutdown ---
+    logger.info("Server is shutting down.")
 
 # -----------------------------------------------------------------------------
 # FastAPI app + middleware
 # -----------------------------------------------------------------------------
-app = FastAPI(
-    docs_url="/cog/docs",
-    redoc_url="/cog/redoc",
-    openapi_url="/cog/openapi.json",
-    favicon_url="/cog/favicon.ico"
+app = FastAPI(lifespan=lifespan)
+
+# Add CORS middleware for frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 router = APIRouter(prefix="/cog")
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
@@ -132,10 +164,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
     allow_headers=["*"],
 )
-
-# Use local cache directory for development, Docker path for production
-CACHE_DIR = Path(os.environ.get("CACHE_DIR", "cache"))
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------------------------------------------------------
 # Models
@@ -249,6 +277,11 @@ def _get_cmap(name: str):
 def _png_response(img: Image.Image) -> Response:
     buf = BytesIO()
     img.save(buf, format="PNG")
+    headers = {"Cache-Control": "public, max-age=3600"} # Cache for 1 hour
+    return Response(content=buf.getvalue(), media_type="image/png", headers=headers)
+
+def _png_response_from_bytes(content: bytes) -> Response:
+    """Create a PNG response directly from bytes, adding cache headers."""
     headers = {"Cache-Control": "public, max-age=86400"}
     return Response(content=buf.getvalue(), media_type="image/png", headers=headers)
 
@@ -277,20 +310,73 @@ def _tile_to_bounds(x: int, y: int, z: int) -> dict:
 
     return {"lon_min": lon_west, "lon_max": lon_east, "lat_min": lat_south, "lat_max": lat_north}
 
+def _validate_cog_file(cog_path: Path) -> tuple[bool, list, list]:
+    """
+    Validate that a file is a proper Cloud Optimized GeoTIFF.
+    
+    Returns:
+        tuple: (is_valid, errors, warnings)
+    """
+    try:
+        from rio_cogeo.cogeo import cog_validate
+        return cog_validate(str(cog_path))
+    except ImportError:
+        # Fallback validation if rio-cogeo not available
+        try:
+            with rasterio.open(str(cog_path)) as src:
+                # Basic checks for COG-like structure
+                has_overviews = src.overviews(1) is not None and len(src.overviews(1)) > 0
+                is_tiled = src.block_shapes[0] == (256, 256) or src.block_shapes[0] == (512, 512)
+                return has_overviews and is_tiled, [], ["Using basic validation - install rio-cogeo for full validation"]
+        except Exception as e:
+            return False, [str(e)], []
+
+def _tile_intersects_cog_bounds(reader: Reader, x: int, y: int, z: int) -> bool:
+    """Check if a tile intersects with the COG bounds before extraction."""
+    try:
+        # Get COG bounds in WGS84
+        bounds = reader.bounds
+        
+        # Convert tile to lat/lon bounds
+        tile_bounds = _tile_to_bounds(x, y, z)
+        
+        # Check intersection
+        return not (
+            tile_bounds["lon_max"] < bounds[0] or  # tile is west of COG
+            tile_bounds["lon_min"] > bounds[2] or  # tile is east of COG
+            tile_bounds["lat_max"] < bounds[1] or  # tile is south of COG
+            tile_bounds["lat_min"] > bounds[3]     # tile is north of COG
+        )
+    except Exception:
+        return False
+
 def _read_tile(reader: Reader, x: int, y: int, z: int) -> Image.Image:
-    t0 = time.perf_counter()
-    tile_data, mask = reader.tile(x, y, z)
-    dur = int((time.perf_counter() - t0) * 1000)
-    logger.debug(f"rio-tiler tile z={z} x={x} y={y} took {dur}ms")
-    tile_data = tile_data.astype(np.uint8)
-    mask = mask.astype(np.uint8)
-    arr = np.transpose(tile_data, (1, 2, 0))
-    if arr.shape[2] == 4:
-        rgba = arr.copy()
-        rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
-    else:
-        rgba = np.dstack([arr, mask])
-    return Image.fromarray(rgba, "RGBA")
+    """Read a tile from COG, handling out-of-bounds gracefully by returning transparent tiles."""
+    try:
+        t0 = time.perf_counter()
+        tile_data, mask = reader.tile(x, y, z)
+        dur = int((time.perf_counter() - t0) * 1000)
+        logger.debug(f"rio-tiler tile z={z} x={x} y={y} took {dur}ms")
+        tile_data = tile_data.astype(np.uint8)
+        mask = mask.astype(np.uint8)
+        arr = np.transpose(tile_data, (1, 2, 0))
+        if arr.shape[2] == 4:
+            rgba = arr.copy()
+            rgba[:, :, 3] = np.minimum(rgba[:, :, 3], mask)
+        else:
+            rgba = np.dstack([arr, mask])
+        return Image.fromarray(rgba, "RGBA")
+    except Exception as e:
+        # Handle out-of-bounds tiles gracefully by returning transparent tile
+        if "TileOutsideBounds" in str(e) or "outside bounds" in str(e).lower():
+            logger.debug(f"Tile {z}/{x}/{y} outside bounds, returning transparent tile")
+            # Return a transparent 256x256 RGBA tile
+            transparent_rgba = np.zeros((256, 256, 4), dtype=np.uint8)
+            return Image.fromarray(transparent_rgba, "RGBA")
+        else:
+            # Re-raise other exceptions
+            logger.error(f"Unexpected tile error for {z}/{x}/{y}: {e}")
+            raise
 
 # -----------------------------------------------------------------------------
 # Core: ensure COG exists/build
@@ -349,7 +435,7 @@ def ensure_cog_from_params(
 
         try:
             # Load arrays ready for plotting
-            lons_plot, lats_plot, data_ma = load_plot_ready_arrays(
+            lons_plot, lats_plot, data_ma, data_bounds = load_plot_ready_arrays(
                 layer_id=params["layer_id"],
                 url=params["url"],
                 variable=params["variable"],
@@ -377,8 +463,8 @@ def ensure_cog_from_params(
                 pass
 
             # Render figure
-            PIXELS_PER_INCH = 256 / 2.54  # 256 px per inch
-            fig, ax = plt.subplots(figsize=(10, 6), dpi=PIXELS_PER_INCH)
+            # Higher resolution for smaller pixels: ~2048px wide
+            fig, ax = plt.subplots(figsize=(12, 8), dpi=170)
             fig.patch.set_alpha(0)
             ax.set_facecolor((0, 0, 0, 0))
             ax.axis("off")
@@ -401,8 +487,8 @@ def ensure_cog_from_params(
                 raise
 
             # Clamp axes to subset extent (avoid global stretch)
-            ax.set_xlim(float(lons_plot.min()), float(lons_plot.max()))
-            ax.set_ylim(float(lats_plot.min()), float(lats_plot.max()))
+            ax.set_xlim(data_bounds['lon_min'], data_bounds['lon_max'])
+            ax.set_ylim(data_bounds['lat_min'], data_bounds['lat_max'])
 
             fig.tight_layout(pad=0)
             fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
@@ -416,8 +502,8 @@ def ensure_cog_from_params(
         image = image.transpose((2, 0, 1)).astype("uint8")
 
         # Geo-reference to subset bounds
-        left, right = float(lons_plot.min()), float(lons_plot.max())
-        bottom, top = float(lats_plot.min()), float(lats_plot.max())
+        left, right = data_bounds['lon_min'], data_bounds['lon_max']
+        bottom, top = data_bounds['lat_min'], data_bounds['lat_max']
         transform = from_bounds(left, bottom, right, top, w, h)
 
         profile4326 = {
@@ -471,28 +557,42 @@ def ensure_cog_from_params(
                         num_threads=0,
                     )
 
-        from rio_cogeo.cogeo import cog_translate
+        from rio_cogeo.cogeo import cog_translate, cog_validate
         from rio_cogeo.profiles import cog_profiles
 
-        cog_profile = cog_profiles.get("deflate")
-        cog_profile.update({
-            "blockxsize": 256,
-            "blockysize": 256,
-            "zlevel": 9,
-            "predictor": 2,
-            "interleave": "pixel",
-            "tiled": True,
-        })
+        # Optimized COG profile (consistent with cog_generator.py)
+        cog_profile = {
+            'driver': 'GTiff',
+            'compress': 'DEFLATE',
+            'blockxsize': 256,
+            'blockysize': 256,
+            'tiled': True,
+            'interleave': 'pixel',
+            'predictor': 2,  # Horizontal differencing for better compression
+            'zlevel': 6      # Balanced compression vs speed
+        }
         _safe_unlink(tmp_out)
+        # Add overview generation to the COG creation process
         cog_translate(
             str(temp_tif_3857),
             str(tmp_out),
             cog_profile,
-            overview_resampling="nearest",
+            overview_resampling="bilinear",  # Use bilinear for smoother overviews
+            overview_level=5,                # Generate 5 levels of overviews
             web_optimized=True,
             in_memory=False,
-            config={"GDAL_NUM_THREADS": "ALL_CPUS", "GDAL_TIFF_OVR_BLOCKSIZE": "128"},
+            config={"GDAL_NUM_THREADS": "ALL_CPUS", "GDAL_TIFF_OVR_BLOCKSIZE": "256"},
         )
+        
+        # Validate the generated COG
+        is_valid_cog, cog_errors, cog_warnings = cog_validate(str(tmp_out))
+        if not is_valid_cog:
+            cog_logger.warning(f"[COG] Generated COG failed validation: {cog_errors}")
+        elif cog_warnings:
+            cog_logger.info(f"[COG] COG validation warnings: {cog_warnings}")
+        else:
+            cog_logger.info(f"[COG] COG validation passed ✅")
+            
         os.replace(tmp_out, out_cog)
         cog_logger.info(f"[COG] build COMPLETE job_id={job_id} size={out_cog.stat().st_size}")
         return out_cog
@@ -509,7 +609,76 @@ def read_root():
             "ugrid_comparison": "/cog/ugrid-comparison",
             "index": "/cog/index"
         },
+        "endpoints": {
+            "cog_status": "/cog/cog-status",
+            "health": "/cog/health"
+        },
         "status": "running"
+    }
+
+@router.get("/cog-status")
+def cog_status():
+    """Check the health and status of cached COG files."""
+    try:
+        # Check cache directories
+        cache_stats = {
+            "cache_dir": str(CACHE_DIR),
+            "cache_exists": CACHE_DIR.exists(),
+            "total_cogs": 0,
+            "valid_cogs": 0,
+            "invalid_cogs": 0,
+            "total_size_mb": 0,
+            "cog_files": []
+        }
+        
+        if CACHE_DIR.exists():
+            for cog_file in CACHE_DIR.glob("**/*.tif"):
+                if cog_file.is_file():
+                    cache_stats["total_cogs"] += 1
+                    file_size_mb = cog_file.stat().st_size / (1024 * 1024)
+                    cache_stats["total_size_mb"] += file_size_mb
+                    
+                    # Validate COG
+                    is_valid, errors, warnings = _validate_cog_file(cog_file)
+                    if is_valid:
+                        cache_stats["valid_cogs"] += 1
+                        status = "✅ Valid COG"
+                    else:
+                        cache_stats["invalid_cogs"] += 1
+                        status = f"❌ Invalid: {errors[:2]}"  # Show first 2 errors
+                    
+                    cache_stats["cog_files"].append({
+                        "filename": cog_file.name,
+                        "path": str(cog_file.relative_to(CACHE_DIR)),
+                        "size_mb": round(file_size_mb, 2),
+                        "status": status,
+                        "warnings": warnings[:2] if warnings else []
+                    })
+        
+        cache_stats["total_size_mb"] = round(cache_stats["total_size_mb"], 2)
+        
+        return {
+            "status": "healthy" if cache_stats["invalid_cogs"] == 0 else "warning",
+            "cache_stats": cache_stats,
+            "gdal_config": {
+                "GDAL_CACHEMAX": os.environ.get("GDAL_CACHEMAX", "not set"),
+                "GDAL_NUM_THREADS": os.environ.get("GDAL_NUM_THREADS", "not set"),
+                "VSI_CACHE": os.environ.get("VSI_CACHE", "not set"),
+                "COG_optimizations": "✅ Enabled"
+            }
+        }
+    except Exception as e:
+        logger.exception("COG status check failed")
+        return {"status": "error", "error": str(e)}
+
+@router.get("/health")
+def health_check():
+    """Simple health check endpoint."""
+    return {
+        "status": "healthy",
+        "service": "COG Tile Server",
+        "cache_dir_exists": CACHE_DIR.exists(),
+        "timestamp": str(time.time())
     }
 
 # Root redirect outside of router
@@ -539,12 +708,29 @@ def cook_islands_tiles(
     use_local: bool = Query(False, description="Use local test data (fallback for network issues)"),
 ):
     """Cook Islands specific tile endpoint with defaults for Rarotonga inundation data."""
+    headers = {"Cache-Control": "public, max-age=3600"}
+
+    """Cook Islands specific tile endpoint with defaults for Rarotonga inundation data."""
+    logger.info(f"Cook Islands tile request: variable={variable}, z={z}, x={x}, y={y}, time={time}")
+    
     cook_islands_url = (
         "/workspaces/cog_tiler/cook_islands_test_data.nc"
         if use_local else
         "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
     )
-    rarotonga_bounds = {"lon_min": -159.9, "lon_max": -159.6, "lat_min": -21.3, "lat_max": -21.1}
+
+    # World-class styling for inundation data
+    if variable == 'Band1':
+        plot_type = "discrete_cmap"
+        plot_opts = {
+            "ranges": ["0.0-0.25", "0.25-0.5", "0.5-1.0", "1.0-2.0", "2.0-5.0"],
+            "cmap": "Blues",
+            "mask_out_of_range": False, # Show values above max in the top color
+            "transparent_below": 0.01
+        }
+    else:
+        plot_type = "contourf"
+        plot_opts = {"antialiased": True, "alpha": 0.8}
 
     try:
         cog_path = ensure_cog_from_params(
@@ -556,21 +742,22 @@ def cook_islands_tiles(
             vmin=vmin,
             vmax=vmax,
             step=0.1,
-            **rarotonga_bounds,
-            plot="contourf",
-            plot_options={"antialiased": True, "alpha": 0.8}
+            lon_min=-180, lon_max=180, lat_min=-90, lat_max=90,  # Use full extent
+            plot=plot_type,
+            plot_options=plot_opts
         )
         with Reader(str(cog_path)) as reader:
-            try:
-                img = _read_tile(reader, x, y, z)
-            except Exception:
-                logger.exception(f"Tile generation error z={z} x={x} y={y}")
-                img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+            # Let _read_tile handle bounds checking gracefully
+            img = _read_tile(reader, x, y, z)
     except Exception:
         logger.exception("COG generation failed for Cook Islands")
         img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
 
-    return _png_response(img)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    tile_bytes = buf.getvalue()
+
+    return Response(content=tile_bytes, media_type="image/png", headers=headers)
 
 @router.get("/cook-islands-ugrid/{z}/{x}/{y}.png")
 def cook_islands_ugrid_tiles(
@@ -580,39 +767,32 @@ def cook_islands_ugrid_tiles(
     colormap: str = Query("jet", description="Matplotlib colormap"),
     vmin: Optional[float] = Query(None, description="Min value for colormap"),
     vmax: Optional[float] = Query(None, description="Max value for colormap"),
-    use_direct: bool = Query(True, description="Use direct triangular mesh (recommended)"),
 ):
     """
-    Cook Islands UGRID tiles - NOW USES DIRECT TRIANGULAR MESH BY DEFAULT.
-    Set use_direct=false for old interpolated approach.
+    Cook Islands UGRID tiles.
+    This endpoint always generates a COG from the UGRID data first,
+    then serves tiles from that COG.
     """
+    headers = {"Cache-Control": "public, max-age=3600"}
     ugrid_url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
 
-    if use_direct:
-        from ugrid_direct import create_direct_ugrid_tile
-        bounds = _tile_to_bounds(x, y, z)
-        try:
-            tile_bytes = create_direct_ugrid_tile(
-                url=ugrid_url,
-                variable=variable,
-                time=time,
-                lon_min=bounds["lon_min"],
-                lon_max=bounds["lon_max"],
-                lat_min=bounds["lat_min"],
-                lat_max=bounds["lat_max"],
-                tile_size=256,
-                colormap=colormap,
-                vmin=vmin,
-                vmax=vmax
-            )
-            return Response(content=tile_bytes, media_type="image/png")
-        except Exception:
-            logger.exception("Direct UGRID tile error")
-            img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-            return _png_response(img)
+    # --- COG-based approach ---
+    
+    # Define sensible defaults for vmin/vmax per variable
+    variable_defaults = {
+        'hs': {'vmin': 0.0, 'vmax': 4.0},
+        'tpeak': {'vmin': 2.0, 'vmax': 20.0},
+        'tm02': {'vmin': 2.0, 'vmax': 15.0},
+        'dirp': {'vmin': 0.0, 'vmax': 360.0},
+        'u10': {'vmin': -15.0, 'vmax': 15.0},
+        'v10': {'vmin': -15.0, 'vmax': 15.0},
+        'water_level': {'vmin': -2.0, 'vmax': 3.0}
+    }
+    defaults = variable_defaults.get(variable, {'vmin': 0.0, 'vmax': 1.0})
+    final_vmin = vmin if vmin is not None else defaults['vmin']
+    final_vmax = vmax if vmax is not None else defaults['vmax']
 
     # Fallback to interpolated approach
-    rarotonga_bounds = {"lon_min": -159.95, "lon_max": -159.55, "lat_min": -21.35, "lat_max": -21.05}
     try:
         cog_path = ensure_cog_from_params(
             layer_id="cook_islands_ugrid",
@@ -620,10 +800,10 @@ def cook_islands_ugrid_tiles(
             variable=variable,
             time=time,
             colormap=colormap,
-            vmin=vmin or -2.0,
-            vmax=vmax or 3.0,
+            vmin=final_vmin,
+            vmax=final_vmax,
             step=0.1,
-            **rarotonga_bounds,
+            lon_min=-180, lon_max=180, lat_min=-90, lat_max=90, # Use full extent to load all data
             plot="contourf",
             plot_options={"antialiased": True, "alpha": 0.9}
         )
@@ -637,7 +817,10 @@ def cook_islands_ugrid_tiles(
         logger.exception("UGRID COG generation failed (interpolated)")
         img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
 
-    return _png_response(img)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    tile_bytes = buf.getvalue()
+    return Response(content=tile_bytes, media_type="image/png", headers=headers)
 
 # Initialize COG generator
 cog_generator = COGGenerator()
@@ -653,7 +836,7 @@ def list_available_cogs():
         return {"status": "error", "message": str(e)}
 
 @router.post("/cogs/generate")
-def generate_cog(
+def generate_cog(  # Changed to 'def' to run in a thread pool
     variable: str = Query("hs", description="Variable to generate COG for"),
     time_index: int = Query(0, description="Time index"),
     vmin: float = Query(0.0, description="Min value"),
@@ -704,29 +887,10 @@ def cook_islands_cog_tiles(
         )
         logger.info(f"COG path: {cog_path}")
         with Reader(str(cog_path)) as reader:
-            try:
-                tile_data, mask = reader.tile(x, y, z)
-                # Normalize to uint8 if needed
-                if tile_data.dtype != np.uint8:
-                    tile_data = (tile_data * 255).astype(np.uint8)
-
-                if tile_data.shape[0] == 4:  # RGBA
-                    rgba = np.transpose(tile_data, (1, 2, 0))
-                elif tile_data.shape[0] == 3:  # RGB
-                    rgb = np.transpose(tile_data, (1, 2, 0))
-                    alpha = (mask * 255).astype(np.uint8)
-                    rgba = np.dstack([rgb, alpha])
-                else:  # Single band
-                    gray = np.transpose(tile_data, (1, 2, 0))
-                    alpha = (mask * 255).astype(np.uint8)
-                    rgba = np.dstack([gray, gray, gray, alpha])
-
-                img = Image.fromarray(rgba, "RGBA")
-                return _png_response(img)
-            except Exception:
-                logger.exception("Tile extraction error (pre-generated COG)")
-                img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-                return _png_response(img)
+            # Use the new _read_tile function that handles bounds gracefully
+            img = _read_tile(reader, x, y, z)
+            return _png_response(img)
+    
     except Exception:
         logger.exception("COG tile generation failed")
         img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
@@ -809,6 +973,7 @@ def tiles_dynamic(
         description="JSON dict of matplotlib kwargs; for 'discrete', include ranges (list) and colors (list).",
     ),
 ):
+    headers = {"Cache-Control": "public, max-age=3600"}
     params = canonicalize_params(
         layer_id=layer_id,
         url=url,
@@ -837,7 +1002,11 @@ def tiles_dynamic(
         except Exception:
             logger.exception("tiles_dynamic tile read error")
             img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    return _png_response(img)
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    tile_bytes = buf.getvalue()
+    return Response(content=tile_bytes, media_type="image/png", headers=headers)
 
 @router.get("/cook-islands/wms-comparison")
 def cook_islands_wms_comparison(
@@ -929,6 +1098,11 @@ def get_forecast_metadata():
                 "description": "Direction waves are coming from (meteorological convention)",
                 "range": [0, 360], "colormap": "hsv", "source": "ugrid"
             },
+            "dirm": {
+                "name": "Mean Wave Direction", "units": "degrees",
+                "description": "Mean direction waves are coming from (meteorological convention)",
+                "range": [0, 360], "colormap": "hsv", "source": "ugrid"
+            },
             "u10": {
                 "name": "Wind U Component", "units": "m/s",
                 "description": "Eastward wind speed at 10m above surface",
@@ -938,6 +1112,11 @@ def get_forecast_metadata():
                 "name": "Wind V Component", "units": "m/s",
                 "description": "Northward wind speed at 10m above surface",
                 "range": [-25, 25], "colormap": "RdBu_r", "source": "ugrid"
+            },
+            "tm02": {
+                "name": "Mean Wave Period", "units": "seconds",
+                "description": "Mean time interval between successive wave crests",
+                "range": [2, 15], "colormap": "coolwarm", "source": "ugrid"
             },
             "Band1": {
                 "name": "Inundation Depth", "units": "meters",
@@ -997,18 +1176,31 @@ def get_forecast_status():
 @router.get("/forecast/current/{variable}")
 def get_current_forecast_value(variable: str, lat: float = -21.2367, lon: float = -159.7777, time_index: int = 0):
     """Get current forecast value for a specific location and variable (simplified nearest logic)."""
+    
+    # Determine the correct dataset URL and access method based on the variable
+    if variable == 'Band1':
+        url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
+        is_ugrid = False
+    else:
+        url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
+        is_ugrid = True
+
     try:
-        if variable == "Band1":
-            url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_inundation_depth.nc"
-            with xr.open_dataset(url) as ds:
-                value = float(ds[variable].isel(x=1000, y=1000).values)
-        else:
-            url = "https://gemthreddshpc.spc.int/thredds/dodsC/POP/model/country/spc/forecast/hourly/COK/Rarotonga_UGRID.nc"
-            with xr.open_dataset(url) as ds:
-                if 'time' in ds.dims and time_index < len(ds.time):
-                    value = float(ds[variable].isel(time=time_index, mesh_node=500).values)
-                else:
-                    value = float(ds[variable].isel(mesh_node=500).values)
+        with xr.open_dataset(url) as ds:
+            da = ds[variable]
+            if 'time' in da.dims and time_index < len(da.time):
+                da = da.isel(time=time_index)
+
+            if is_ugrid:
+                value = float(da.isel(mesh_node=500).values)  # Simplified logic for UGRID
+            else:
+                # Inundation data is in UTM, so we need to transform the requested lat/lon
+                from pyproj import Transformer
+                transformer = Transformer.from_crs('EPSG:4326', 'EPSG:32704', always_xy=True)
+                x_utm, y_utm = transformer.transform(lon, lat)
+                
+                # Select using the dataset's native x/y coordinates
+                value = float(da.sel(x=x_utm, y=y_utm, method='nearest').values)
 
         if np.isnan(value):
             value = None
@@ -1150,6 +1342,45 @@ def index_page():
     </html>
     """
     return HTMLResponse(content=html_content)
+
+@router.delete("/cache/clear")
+def clear_cache():
+    """
+    Deletes all files and subdirectories within the cache directory.
+
+    This is a destructive operation intended for development and debugging.
+    It will remove all generated COG files and lock files.
+    """
+    global CACHE_DIR
+    if not CACHE_DIR.exists() or not CACHE_DIR.is_dir():
+        logger.warning("Cache clear request: directory not found.")
+        return JSONResponse(
+            content={"status": "not_found", "message": "Cache directory does not exist."},
+            status_code=404,
+        )
+
+    deleted_files = 0
+    deleted_dirs = 0
+    errors = []
+
+    logger.info(f"Clearing cache directory: {CACHE_DIR}")
+    for item in CACHE_DIR.iterdir():
+        try:
+            if item.is_dir():
+                shutil.rmtree(item)
+                deleted_dirs += 1
+            else:
+                item.unlink()
+                deleted_files += 1
+        except Exception as e:
+            error_detail = {"item": str(item.relative_to(CACHE_DIR)), "error": str(e)}
+            errors.append(error_detail)
+            logger.error(f"Failed to delete cache item {item}: {e}")
+
+    if errors:
+        return JSONResponse(content={"status": "partial_error", "message": "Cache partially cleared.", "deleted_files": deleted_files, "deleted_dirs": deleted_dirs, "errors": errors}, status_code=500)
+
+    return JSONResponse(content={"status": "success", "message": "Cache directory has been cleared.", "deleted_files": deleted_files, "deleted_dirs": deleted_dirs})
 
 # Mount router last
 app.include_router(router)

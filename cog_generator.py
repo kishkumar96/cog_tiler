@@ -17,7 +17,7 @@ from rasterio.crs import CRS
 from rasterio.transform import from_bounds
 from rasterio.warp import reproject, Resampling
 from rasterio.windows import Window
-from rio_cogeo.cogeo import cog_translate
+from rio_cogeo.cogeo import cog_translate, cog_validate
 from rio_cogeo.profiles import cog_profiles
 import tempfile
 import matplotlib.pyplot as plt
@@ -262,12 +262,17 @@ class COGGenerator:
                         source="SPC THREDDS"
                     )
                 
-                # Convert to COG with better error handling
-                cog_profile = cog_profiles.get("lzw")
-                cog_profile.update({
-                    'BLOCKXSIZE': 256,
-                    'BLOCKYSIZE': 256
-                })
+                # Convert to COG with optimized profile
+                cog_profile = {
+                    'driver': 'GTiff',
+                    'compress': 'DEFLATE',
+                    'blockxsize': 256,
+                    'blockysize': 256,
+                    'tiled': True,
+                    'interleave': 'pixel',
+                    'predictor': 2,  # Horizontal differencing for better compression
+                    'zlevel': 6      # Balanced compression vs speed
+                }
                 
                 # Add retry logic for COG generation
                 max_retries = 3
@@ -281,9 +286,16 @@ class COGGenerator:
                         )
                         
                         # Validate the generated COG
-                        with rasterio.open(str(cog_path)) as test_src:
-                            # Simple read test to ensure file is not corrupted
-                            test_src.read(1, window=Window(0, 0, 10, 10))
+                        is_valid_cog, cog_errors, cog_warnings = cog_validate(str(cog_path))
+                        if not is_valid_cog:
+                            print(f"⚠️ Generated COG failed validation: {cog_errors}")
+                            # Still do basic read test as fallback
+                            with rasterio.open(str(cog_path)) as test_src:
+                                test_src.read(1, window=Window(0, 0, 10, 10))
+                        else:
+                            print(f"✅ COG validation passed for {variable} t={time_index}")
+                            if cog_warnings:
+                                print(f"   Warnings: {cog_warnings}")
                         
                         break  # Success, exit retry loop
                         

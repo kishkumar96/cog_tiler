@@ -87,7 +87,7 @@ def create_wave_forecast_demo():
             return (xtile, ytile)
         
         # Test COG endpoints
-        base_url = "http://localhost:8000/cog"
+        base_url = "http://localhost:8001/cog"
         
         summary_text = f"""
 🌊 WAVE FORECAST DATA SUMMARY

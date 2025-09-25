@@ -296,7 +296,7 @@ def load_plot_ready_arrays(
     lat_min: float,
     lat_max: float,
     plot: str = "contourf",
-    options: Optional[Union[str, Dict[str, Any]]] = None,
+    options: Optional[Union[str, Dict[str, Any]]] = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ma.MaskedArray]:
     """
     Open the remote dataset, extract the requested variable and time,
@@ -307,6 +307,7 @@ def load_plot_ready_arrays(
     - lons_plot: 1D numpy array (increasing)
     - lats_plot: 1D numpy array (increasing)
     - data_ma: 2D masked array aligned with (lats_plot, lons_plot)
+    - bounds: Dict with actual data bounds {'lon_min', 'lon_max', 'lat_min', 'lat_max'}
     """
     
     # Special handling for Cook Islands THREDDS data
@@ -422,7 +423,7 @@ def load_plot_ready_arrays(
             data_vals = np.asarray(da_sub.values)
             data_ma = np.ma.masked_invalid(data_vals)
 
-    return lons_plot, lats_plot, data_ma
+    return lons_plot, lats_plot, data_ma, {"lon_min": lons_plot.min(), "lon_max": lons_plot.max(), "lat_min": lats_plot.min(), "lat_max": lats_plot.max()}
 
 
 def _load_cook_islands_utm_data(
@@ -434,7 +435,7 @@ def _load_cook_islands_utm_data(
     lon_max: float,
     lat_min: float,
     lat_max: float,
-) -> Tuple[np.ndarray, np.ndarray, np.ma.MaskedArray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ma.MaskedArray, Dict[str, float]]:
     """
     Special handler for Cook Islands THREDDS data which uses UTM Zone 4S coordinates.
     
@@ -445,19 +446,27 @@ def _load_cook_islands_utm_data(
     - lons_plot: 1D numpy array (longitude values)
     - lats_plot: 1D numpy array (latitude values)  
     - data_ma: 2D masked array aligned with (lats_plot, lons_plot)
+    - bounds: Dict with actual data bounds {'lon_min', 'lon_max', 'lat_min', 'lat_max'}
     """
     try:
         from pyproj import Transformer
     except ImportError:
         raise ImportError("pyproj is required for Cook Islands UTM coordinate transformation")
     
+    # Variable name mapping for Cook Islands data (no mapping needed for UGRID variables)
+    variable_mapping = {}
+    
     with xr.open_dataset(url) as ds:
-        if variable not in ds:
+        # Map the variable name if needed
+        actual_variable = variable_mapping.get(variable, variable)
+        
+        if actual_variable not in ds:
             available_vars = list(ds.data_vars.keys())
-            raise KeyError(f"Variable '{variable}' not found in dataset. Available: {available_vars}")
+            mapped_vars = {k: v for k, v in variable_mapping.items() if v in ds.data_vars}
+            raise KeyError(f"Variable '{variable}' (maps to '{actual_variable}') not found in dataset. Available: {available_vars}. Mapped variables: {mapped_vars}")
         
         # Get the data variable
-        da = ds[variable]
+        da = ds[actual_variable]
         
         # Handle time dimension if present
         if time is not None and 'time' in da.dims:
@@ -509,7 +518,8 @@ def _load_cook_islands_utm_data(
             lats_plot = lats_plot[::-1]
             data_ma = data_ma[::-1, :]
         
-        return lons_plot, lats_plot, data_ma
+        bounds = {"lon_min": lons_plot.min(), "lon_max": lons_plot.max(), "lat_min": lats_plot.min(), "lat_max": lats_plot.max()}
+        return lons_plot, lats_plot, data_ma, bounds
 
 
 def _load_cook_islands_ugrid_data(
@@ -521,7 +531,7 @@ def _load_cook_islands_ugrid_data(
     lon_max: float,
     lat_min: float,
     lat_max: float,
-) -> Tuple[np.ndarray, np.ndarray, np.ma.MaskedArray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ma.MaskedArray, Dict[str, float]]:
     """
     Load Cook Islands UGRID unstructured mesh data using native triangular mesh approach.
     This preserves the original mesh structure and provides sharp boundaries without interpolation artifacts.
@@ -572,7 +582,6 @@ def _load_cook_islands_ugrid_data(
                 da = da.isel(time=0)
         else:
             da = da.isel(time=0)
-            da = da.isel(time=0)
         
         # Get data values (should be 1D array matching mesh nodes)
         if hasattr(da, 'values'):
@@ -600,11 +609,17 @@ def _load_cook_islands_ugrid_data(
         nan_mask = np.isnan(data_values)
         tri_mask = np.any(np.where(nan_mask[triang.triangles], True, False), axis=1)
         triang.set_mask(tri_mask)
+
+        # Determine actual data bounds from the valid mesh nodes
+        valid_nodes = ~np.isnan(data_values)
+        actual_lon_min, actual_lon_max = lons_mesh[valid_nodes].min(), lons_mesh[valid_nodes].max()
+        actual_lat_min, actual_lat_max = lats_mesh[valid_nodes].min(), lats_mesh[valid_nodes].max()
+        bounds = {"lon_min": actual_lon_min, "lon_max": actual_lon_max, "lat_min": actual_lat_min, "lat_max": actual_lat_max}
         
         # Create regular grid for COG tile generation
-        grid_resolution = 100  # Number of grid points in each dimension
-        lons_grid = np.linspace(lon_min, lon_max, grid_resolution)
-        lats_grid = np.linspace(lat_min, lat_max, grid_resolution)
+        grid_resolution = 512  # Higher resolution for smaller pixels and more detail
+        lons_grid = np.linspace(actual_lon_min, actual_lon_max, grid_resolution)
+        lats_grid = np.linspace(actual_lat_min, actual_lat_max, grid_resolution)
         lons_2d, lats_2d = np.meshgrid(lons_grid, lats_grid)
         
         # Use triangular linear interpolation - preserves mesh structure
@@ -635,4 +650,4 @@ def _load_cook_islands_ugrid_data(
         # Create final masked array
         data_result = np.ma.masked_invalid(data_interpolated)
         
-        return lons_grid, lats_grid, data_result
+        return lons_grid, lats_grid, data_result, bounds

@@ -10,7 +10,7 @@
     <script>
         // Test the protocol detection logic
         const isCodespace = window.location.hostname.includes('app.github.dev');
-        const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8000';
+        const baseUrl = isCodespace ? window.location.origin : 'http://localhost:8001';
         
         const results = document.getElementById('results');
         results.innerHTML = `
@@ -27,7 +27,7 @@
             
             <h3>✅ Expected Result:</h3>
             <p>In Codespace: Uses HTTPS with your Codespace domain</p>
-            <p>Locally: Uses HTTP with localhost:8000</p>
+            <p>Locally: Uses HTTP with localhost:8001</p>
             
             <h3>🔄 Next Step:</h3>
             <p>Refresh your forecast application to see the tiles load!</p>
